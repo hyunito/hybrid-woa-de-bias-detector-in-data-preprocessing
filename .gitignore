@@ -1,3 +1,4 @@
 project_plan.md
 .env
 *.csv
+__init__.py
