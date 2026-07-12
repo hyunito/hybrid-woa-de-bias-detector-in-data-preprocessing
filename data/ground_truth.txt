@@ -1,0 +1,9 @@
+Highest Bias In Each Transformation
+
+{'max_fitness_score': 1.6028579591720118, 'script_name': 'remove_duplicates.py', 'transformation_name': 'Remove Duplicates', 'demographic_group': 'age:(-5.001, 28.0]|race:Black|sex:male'}
+{'max_fitness_score': 1.5522558090869196, 'script_name': 'remove_duplicates.py', 'transformation_name': 'Fix Format', 'demographic_group': 'age:(-5.001, 28.0]|race:Other Race|sex:Female'}
+{'max_fitness_score': 1.5522558090869196, 'script_name': 'handle_missing_data.py', 'transformation_name': 'Handle Missing Values', 'demographic_group': 'age:(-5.001, 28.0]|race:Other Race|sex:Female'}
+{'max_fitness_score': 1.5522558090869196, 'script_name': 'handle_missing_data.py', 'transformation_name': 'Handle Missing Rows', 'demographic_group': 'age:(-5.001, 28.0]|race:Other Race|sex:Female'}
+{'max_fitness_score': 1.5522558090869196, 'script_name': 'handle_missing_data.py', 'transformation_name': 'Remove Missing Target Variable', 'demographic_group': 'age:(-5.001, 28.0]|race:Other Race|sex:Female'}
+{'max_fitness_score': 1.6106235925652492, 'script_name': 'outlier_remover.py', 'transformation_name': 'Num Outlier', 'demographic_group': 'age:(16.999, 28.0]|race:American Indian|sex:Female'}
+{'max_fitness_score': 1.563367596367151, 'script_name': 'outlier_remover.py', 'transformation_name': 'Categorical Outlier', 'demographic_group': 'age:(16.999, 28.0]|race:Black|sex:Female'}

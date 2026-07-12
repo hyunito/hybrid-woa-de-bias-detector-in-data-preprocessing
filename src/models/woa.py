@@ -1,0 +1,208 @@
+import sys
+import os
+import numpy as np
+import math
+import random
+import time
+import fitness
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+from src.utils.benchmark import get_peak_memory, log_audit_run
+from src.utils.audit_report import generate_text_report
+
+
+class MetadataWOAAuditor:
+    def __init__(self, metadata_logs=None, num_whales=20, max_iter=400):
+        """
+        Initializes the WOA Auditor with a 3D search space.
+        :param metadata_logs: Optional list of dictionaries representing the JSONB logs.
+                              If None, will fetch from PostgreSQL database.
+        :param num_whales: Population size of search agents.
+        :param max_iter: Maximum number of search iterations.
+        """
+        self.num_whales = num_whales
+        self.max_iter = max_iter
+        
+        if metadata_logs is not None:
+            fitness._scripts = []
+            fitness._transformations = {}
+            fitness._demographics = {}
+            
+            for log in metadata_logs:
+                script = log.get("script_name", "mock_script.py")
+                trans = log.get("transformation_name", "mock_trans")
+                
+                if script not in fitness._scripts:
+                    fitness._scripts.append(script)
+                    fitness._transformations[script] = []
+                if trans not in fitness._transformations[script]:
+                    fitness._transformations[script].append(trans)
+                demos = log.get("intersectional_demographics", {})
+                fitness._demographics[(script, trans)] = sorted(list(demos.keys()))
+                
+            self.scripts, self.transformations, self.demographics = fitness._scripts, fitness._transformations, fitness._demographics
+            fitness._logs_cache = True
+        else:
+            self.scripts, self.transformations, self.demographics = fitness.get_space_dimensions()
+            
+        self.dim = 3
+        self.best_position = np.zeros(self.dim)
+        self.best_fitness = float('-inf')
+
+    def clip_position(self, pos):
+        """
+        Clips a 3D position [s, t, d] to the valid uneven bounds of the search space.
+        """
+        if not self.scripts:
+            return np.zeros(self.dim)
+            
+        s = int(round(np.clip(pos[0], 0, len(self.scripts) - 1)))
+        script_name = self.scripts[s]
+        
+        t_max = len(self.transformations.get(script_name, [])) - 1
+        t_max = max(0, t_max)
+        t = int(round(np.clip(pos[1], 0, t_max)))
+        
+        trans_list = self.transformations.get(script_name, [])
+        trans_name = trans_list[t] if trans_list else "None"
+        
+        d_max = len(self.demographics.get((script_name, trans_name), [])) - 1
+        d_max = max(0, d_max)
+        d = int(round(np.clip(pos[2], 0, d_max)))
+        
+        return np.array([float(s), float(t), float(d)])
+
+    def calculate_fitness(self, pos):
+        """
+        Calls calculate_3d_fitness using s_idx, t_idx, d_idx coordinates.
+        """
+        score, _, _, _ = fitness.calculate_3d_fitness(pos[0], pos[1], pos[2])
+        return score
+
+    def run_audit(self, target_script="outlier_remover.py"):
+        """
+        Executes the main WOA Scouting loop over the uneven 3D search space.
+        :param target_script: The script to track for the traceability rate metric.
+        """
+        if not self.scripts:
+            print("No search space found. Verify database or fallback JSON path.")
+            return {
+                "max_fitness_score": 0.0,
+                "script_name": "None",
+                "transformation_name": "None",
+                "demographic_group": "None"
+            }
+
+        whales_pos = []
+        for _ in range(self.num_whales):
+            s_val = random.randint(0, len(self.scripts) - 1)
+            script_name = self.scripts[s_val]
+            
+            t_max = len(self.transformations.get(script_name, [])) - 1
+            t_max = max(0, t_max)
+            t_val = random.randint(0, t_max)
+            trans_list = self.transformations.get(script_name, [])
+            trans_name = trans_list[t_val] if trans_list else "None"
+            
+            d_max = len(self.demographics.get((script_name, trans_name), [])) - 1
+            d_max = max(0, d_max)
+            d_val = random.randint(0, d_max)
+            
+            whales_pos.append([float(s_val), float(t_val), float(d_val)])
+            
+        whales_pos = np.array(whales_pos)
+        
+        self.best_fitness = float('-inf')
+        self.best_position = whales_pos[0].copy()
+        
+        successful_trace_iterations = 0
+        
+        for t in range(self.max_iter):
+           
+            for i in range(self.num_whales):
+                whales_pos[i] = self.clip_position(whales_pos[i])
+                score = self.calculate_fitness(whales_pos[i])
+                
+                if score > self.best_fitness:
+                    self.best_fitness = score
+                    self.best_position = whales_pos[i].copy()
+            
+            _, curr_script, _, _ = fitness.calculate_3d_fitness(
+                self.best_position[0], self.best_position[1], self.best_position[2]
+            )
+            if curr_script == target_script:
+                successful_trace_iterations += 1
+            
+            a = 2.0 - (t * (2.0 / self.max_iter)) 
+            
+            for i in range(self.num_whales):
+                r1 = random.random()
+                r2 = random.random()
+                
+                A = 2 * a * r1 - a
+                C = 2 * r2
+                
+                l = random.uniform(-1, 1)
+                p = random.random()
+                
+                if p < 0.5:
+                    if abs(A) < 1:
+                        # Encircling prey
+                        D = abs(C * self.best_position - whales_pos[i])
+                        new_pos = self.best_position - A * D
+                    else:
+                        # Search for prey (random search agent selection)
+                        random_whale_idx = random.randint(0, self.num_whales - 1)
+                        random_whale = whales_pos[random_whale_idx]
+                        D = abs(C * random_whale - whales_pos[i])
+                        new_pos = random_whale - A * D
+                else:
+                    # Spiral bubble-net attack
+                    D_prime = abs(self.best_position - whales_pos[i])
+                    b = 1 
+                    new_pos = D_prime * math.exp(b * l) * math.cos(2 * math.pi * l) + self.best_position
+                
+                whales_pos[i] = self.clip_position(new_pos)
+
+        best_fitness, best_script, best_trans, best_demo = fitness.calculate_3d_fitness(
+            self.best_position[0], self.best_position[1], self.best_position[2]
+        )
+        
+        # Collect the final status of the entire whale population
+        whales_info = []
+        for i in range(self.num_whales):
+            w_pos = whales_pos[i]
+            w_fit, w_script, w_trans, w_demo = fitness.calculate_3d_fitness(w_pos[0], w_pos[1], w_pos[2])
+            whales_info.append({
+                "whale_id": i + 1,
+                "position": w_pos.tolist(),
+                "fitness_score": w_fit,
+                "script_name": w_script,
+                "transformation_name": w_trans,
+                "demographic_group": w_demo
+            })
+        
+        return {
+            "max_fitness_score": best_fitness,
+            "script_name": best_script,
+            "transformation_name": best_trans,
+            "demographic_group": best_demo,
+            "successful_trace_iterations": f"{successful_trace_iterations}/{self.max_iter}",
+            "whales": whales_info
+        }
+
+if __name__ == "__main__":
+    fitness._logs_cache = None 
+    t_start = time.perf_counter()
+    
+    auditor_real = MetadataWOAAuditor(
+        metadata_logs=None,
+    )
+    result_real = auditor_real.run_audit()
+    
+    t_end = time.perf_counter()
+    latency = t_end - t_start
+    peak_mem = get_peak_memory()
+
+    log_audit_run(result_real, latency, peak_mem)
+    generate_text_report(result_real, latency, peak_mem)
