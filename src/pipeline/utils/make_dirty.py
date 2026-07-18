@@ -4,7 +4,7 @@ import os
 
 def make_dirty():
     np.random.seed(42)
-    file_path = 'data/raw/ACSIncome_2018_100K.csv'
+    file_path = 'data/download/ACSIncome_2018_100K.csv'
     
     if not os.path.exists(file_path):
         print(f"Error: {file_path} not found.")
@@ -98,7 +98,7 @@ def make_dirty():
 
 
 
-    df.to_csv('data/raw/dirty_ACSIncome_2018_100K.csv', index=False)
+    df.to_csv('data/dirty_ACSIncome_2018_100K.csv', index=False)
     print(f"Successfully manipulated data into data/raw/dirty_ACSIncome_2018_100K.csv")
 
 if __name__ == '__main__':

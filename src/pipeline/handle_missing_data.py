@@ -1,7 +1,7 @@
-import pandas as pd
 import numpy as np
-from src.pipeline.outlier_remover import run_outlier_removal
-from src.pipeline.tracker_setup import tracker
+from outlier_remover import run_outlier_removal
+from tracker_setup import tracker
+
 
 @tracker.track("Handle Missing Values")
 def handle_missing(df):

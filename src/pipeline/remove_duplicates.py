@@ -1,6 +1,7 @@
 import pandas as pd
-from src.pipeline.handle_missing_data import process_missing_data
-from src.pipeline.tracker_setup import tracker
+from handle_missing_data import process_missing_data
+from tracker_setup import tracker
+
 
 @tracker.track("Remove Duplicates")
 def remove_duplicates(df):
@@ -55,7 +56,7 @@ def fix_format(df):
     return df
 
 def process_format_and_duplicates(df):
-    """Entry point for this pipeline stage."""
+    
     print("\nStep 1: Removing duplicates and fixing format...")
     df = remove_duplicates(df)
     df = fix_format(df)
@@ -63,3 +64,14 @@ def process_format_and_duplicates(df):
     
     
     return process_missing_data(df)
+
+if __name__ == '__main__':
+    """Entry point for this pipeline stage."""
+
+    print("Starting Data Pipeline...")
+    raw_data_path = 'data/raw/dirty_ACSIncome_2018_100K.csv'
+    print(f"Loading raw data from {raw_data_path}...")
+
+    df = pd.read_csv(raw_data_path)
+    process_format_and_duplicates(df)
+

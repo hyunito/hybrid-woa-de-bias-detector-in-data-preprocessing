@@ -1,4 +1,4 @@
-from src.utils.provenance import ProvenanceMetadataTracker
+from utils.provenance import ProvenanceMetadataTracker
 
 tracker = ProvenanceMetadataTracker(
     protected_attributes=[ 

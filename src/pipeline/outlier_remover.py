@@ -1,4 +1,5 @@
-from src.pipeline.tracker_setup import tracker
+from feature_preparation import run_feature_preparation
+from tracker_setup import tracker
 
 @tracker.track("Num Outlier")
 def num_outlier(df):
@@ -29,16 +30,11 @@ def cat_outlier(df, cat_threshold=0.01):
     
     for col in categorical_cols:
         if col in df_cleaned.columns:
-            # Calculate the percentage frequency of each category
             frequencies = df_cleaned[col].value_counts(normalize=True)
-            
-            # Identify labels that fall below the threshold
             rare_labels = frequencies[frequencies < cat_threshold].index.tolist()
             
-            # Identify rows to remove
             if rare_labels:
                 to_remove = df_cleaned[df_cleaned[col].isin(rare_labels)]
-                # Remove rows that contain those rare labels
                 df_cleaned = df_cleaned[~df_cleaned[col].isin(rare_labels)]
     return df_cleaned
 
@@ -46,9 +42,7 @@ def run_outlier_removal(df):
           
     print("\nStep 3: Removing outliers...")
     df = num_outlier(df)
-    cleaned_df = cat_outlier(df, cat_threshold=0.01)
+    df = cat_outlier(df, cat_threshold=0.01)
     print(f"Shape after step 3: {df.shape}")
 
-    cleaned_df.to_csv('data/cleaned_ACSIncome_2018_100K.csv', index=False)
-
-    return cleaned_df
+    return run_feature_preparation(df)

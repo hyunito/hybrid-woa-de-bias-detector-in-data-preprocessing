@@ -4,36 +4,6 @@ This repository implements a data preprocessing pipeline combined with an auditi
 
 ---
 
-## Folder Structure
-
-```text
-bias-audit-woa/
-├── data/
-│   ├── raw/
-│   │   └── dirty_ACSIncome_2018_100K.csv  # Sample raw dataset with noise, duplicates, and outliers
-│   └── provenance_metadata.json           # Output file containing tracked pipeline provenance logs
-├── src/
-│   ├── pipeline/                          # Steps of the data preprocessing pipeline
-│   │   ├── __init__.py
-│   │   ├── remove_duplicates.py           # Handles duplicate removal and initial text cleaning
-│   │   ├── handle_missing_data.py         # Imputes/removes missing rows and target variables
-│   │   └── outlier_remover.py             # Removes numerical and categorical outliers
-│   ├── models/                            # Auditing models and search algorithms
-│   │   ├── __init__.py
-│   │   ├── fitness.py                     # Computes demographic bias/disparate impact fitness score
-│   │   └── woa.py                         # Whale Optimization Algorithm (WOA) agent implementation
-│   └── utils/                             # Auditing utilities and tracker classes
-│       ├── __init__.py
-│       ├── audit_report.py                # Formatting and writing bias reports
-│       └── provenance.py                  # Provenance metadata snapshot collector
-├── gui.py                                 # Tkinter Graphical User Interface for pipeline control & auditing
-├── main.py                                # Script to run the data preprocessing pipeline
-├── linear_search.py                       # Script to run a grid search (linear scan) for auditing comparison
-└── README.md                              # This project documentation file
-```
-
----
-
 ## Prerequisites & Installation
 
 To run the pipeline and GUI, ensure you have Python 3.x installed. 
