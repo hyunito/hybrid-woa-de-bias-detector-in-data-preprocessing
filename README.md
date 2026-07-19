@@ -6,8 +6,6 @@ This repository implements a data preprocessing pipeline combined with an auditi
 
 ## Prerequisites & Installation
 
-To run the pipeline and GUI, ensure you have Python 3.x installed. 
-
 Install the required Python libraries using pip:
 ```bash
 pip install pandas python-dotenv psutil numpy folktables ipykernel
