@@ -1,5 +1,5 @@
 import numpy as np
-from outlier_remover import run_outlier_removal
+from step_three_outlier_remover import run_outlier_removal
 from tracker_setup import tracker
 
 

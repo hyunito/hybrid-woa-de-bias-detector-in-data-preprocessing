@@ -3,6 +3,10 @@ import pandas as pd
 
 @tracker.track("Group Rare Classes")
 def group_rare_classes(df):
+    frequency = df['occupation'].value_counts(normalize=True)
+    threshold = 0.001
+    rare_classes = frequency[frequency < threshold].index.tolist()
+    df['occupation'] = df['occupation'].replace(rare_classes, 'Other')
     return df
 
 @tracker.track("Bin Numerical Features")
@@ -12,7 +16,6 @@ def bin_numerical_features(df):
     age_labels = ['Infant', 'Toddler', 'Child', 'Teenager', 'Young Adult', 'Adult', 'Senior']
     if 'age' in  df_binned.columns:
         df_binned['age'] = pd.cut(df_binned['age'], bins=age_bins, labels=age_labels)
-
     return df_binned
 
 def run_feature_preparation(df):
