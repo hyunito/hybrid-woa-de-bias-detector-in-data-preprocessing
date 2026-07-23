@@ -53,7 +53,7 @@ class ProvenanceMetadataTracker:
         
         for col in columns:
             if col in df_meta.columns:
-                df_meta[col] = df_meta[col].replace(missing_vals, "Unknown").infer_objects(copy=False)
+                df_meta[col] = df_meta[col].replace(missing_vals, "Unknown")
                 df_meta[col] = df_meta[col].astype(object)
                 df_meta[col] = df_meta[col].astype(str)
         return df_meta
@@ -73,7 +73,7 @@ class ProvenanceMetadataTracker:
                     binned_series = pd.qcut(numeric_series, q=5, duplicates='drop')
                     df_meta.loc[~is_unknown, col] = binned_series
                     
-                    df_meta[col] = df_meta[col].replace(["nan", "NaN"], "Unknown").infer_objects(copy=False)
+                    df_meta[col] = df_meta[col].replace(["nan", "NaN"], "Unknown")
         return df_meta
 
     def _generate_snapshot(self, df):

@@ -11,12 +11,11 @@ def group_rare_classes(df):
 
 @tracker.track("Bin Numerical Features")
 def bin_numerical_features(df):
-    df_binned = df.copy()
     age_bins = [0, 1, 5, 12, 19, 39, 64, 150]
     age_labels = ['Infant', 'Toddler', 'Child', 'Teenager', 'Young Adult', 'Adult', 'Senior']
-    if 'age' in  df_binned.columns:
-        df_binned['age'] = pd.cut(df_binned['age'], bins=age_bins, labels=age_labels)
-    return df_binned
+    if 'age' in df.columns:
+        df['age'] = pd.cut(df['age'], bins=age_bins, labels=age_labels)
+    return df
 
 def run_feature_preparation(df):
     

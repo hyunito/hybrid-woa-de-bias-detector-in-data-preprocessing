@@ -8,18 +8,16 @@ def num_outlier(df):
     
     if 'age' in df_cleaned.columns:
         df_cleaned = df_cleaned[df_cleaned['age'] >= 0]
-    if 'hours-per-week' in df_cleaned.columns:
-        df_cleaned = df_cleaned[df_cleaned['hours-per-week'] >= 0]
-        
-    if 'age' in df_cleaned.columns:
         Q1 = df_cleaned['age'].quantile(0.25)
         Q3 = df_cleaned['age'].quantile(0.75)
         IQR = Q3 - Q1
-        
         lower_bound = Q1 - 1.5 * IQR
         upper_bound = Q3 + 1.5 * IQR
         
         df_cleaned = df_cleaned[(df_cleaned['age'] >= lower_bound) & (df_cleaned['age'] <= upper_bound)]
+    if 'hours-per-week' in df_cleaned.columns:
+        df_cleaned = df_cleaned[df_cleaned['hours-per-week'] >= 0]
+        
     return df_cleaned
 
 @tracker.track("Categorical Outlier")
@@ -34,7 +32,6 @@ def cat_outlier(df, cat_threshold=0.01):
             rare_labels = frequencies[frequencies < cat_threshold].index.tolist()
             
             if rare_labels:
-                to_remove = df_cleaned[df_cleaned[col].isin(rare_labels)]
                 df_cleaned = df_cleaned[~df_cleaned[col].isin(rare_labels)]
     return df_cleaned
 

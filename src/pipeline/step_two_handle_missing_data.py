@@ -9,12 +9,10 @@ def handle_missing(df):
     Handle missing values in the dataset.
     Replaces all blanks or '?' with NA.
     """
-    df = df.copy()
-    
-    df = df.replace(r'^\s*$', np.nan, regex=True).infer_objects(copy=False)
-    df = df.replace('?', np.nan).infer_objects(copy=False)
-    
-    df = df.replace('Unknown', np.nan).infer_objects(copy=False)
+    df = df.replace(r'^\s*$', np.nan, regex=True)
+
+    df = df.replace(['?', 'Unknown', ''], np.nan)
+
     return df
 
 @tracker.track("Handle Missing Rows")
@@ -22,7 +20,7 @@ def missing_rows(df):
     """
     Removes rows missing 3 or more columns.
     """
-    thresh = len(df.columns) - 5
+    thresh = len(df.columns) - 2
     df = df.dropna(thresh=thresh)
     return df
 
@@ -31,7 +29,6 @@ def remove_missing_target(df):
     """
     Removes rows where the target variable ('income') is missing.
     """
-    # Remove rows where target variable ('income') is missing
     if 'income' in df.columns:
         df = df.dropna(subset=['income'])
     return df

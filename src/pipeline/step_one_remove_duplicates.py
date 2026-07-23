@@ -8,7 +8,6 @@ def remove_duplicates(df):
     """
     Remove exact duplicated rows from the dataset.
     """
-    df = df.copy()
     df = df.drop_duplicates()
     return df
 
@@ -17,22 +16,23 @@ def fix_format(df):
     """
     Type cast certain columns and fix formatting like number commas and typos.
     """
+    df = df.copy()
 
     numeric_cols = ['age', 'hours-per-week']
     for col in numeric_cols:
         if col in df.columns:
             if df[col].dtype == 'object':
-                df[col] = df[col].apply(lambda x: str(x).replace(',', '').infer_objects(copy=False) if pd.notnull(x) else x)
+                df[col] = df[col].apply(lambda x: str(x).replace(',', '') if pd.notnull(x) else x)
             df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
 
     cat_cols = ['workclass', 'education', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'place-of-birth', 'income']
     for col in cat_cols:
         if col in df.columns:
             df[col] = df[col].apply(lambda x: str(x).strip() if pd.notnull(x) else x)
-            df[col] = df[col].replace('nan', pd.NA).infer_objects(copy=False)
+            df[col] = df[col].replace('nan', pd.NA)
 
     if 'workclass' in df.columns:
-        df['workclass'] = df['workclass'].replace({'federal gov': 'Federal Government', 'state gov': 'State GGovernment'}).infer_objects(copy=False)
+        df['workclass'] = df['workclass'].replace({'federal gov': 'Federal Government', 'state gov': 'State Government'})
     
     if 'education' in df.columns:
         df['education'] = df['education'].str.capitalize()
@@ -44,11 +44,11 @@ def fix_format(df):
         df['relationship'] = df['relationship'].str.capitalize()
         
     if 'race' in df.columns:
-        df['race'] = df['race'].replace({'wht': 'White', 'blk': 'Black'}).infer_objects(copy=False)
+        df['race'] = df['race'].replace({'wht': 'White', 'blk': 'Black'})
         
     if 'sex' in df.columns:
         df['sex'] = df['sex'].str.capitalize()
-        df['sex'] = df['sex'].replace({'m': 'Male', 'M': 'Male', 'f': 'Female', 'F': 'Female', 'fem': 'Female', 'Fem': 'Female'}).infer_objects(copy=False)
+        df['sex'] = df['sex'].replace({'M': 'Male', 'F': 'Female', 'Fem': 'Female'})
         
     if 'place-of-birth' in df.columns:
         df['place-of-birth'] = df['place-of-birth'].str.capitalize()
@@ -66,7 +66,7 @@ def process_format_and_duplicates(df):
     return process_missing_data(df)
 
 if __name__ == '__main__':
-    """Entry point for this pipeline stage."""
+    #Entry point for this pipeline stage.
 
     print("Starting Data Pipeline...")
     raw_data_path = 'data/dirty_ACSIncome_2018_100K.csv'
@@ -75,4 +75,3 @@ if __name__ == '__main__':
     df = pd.read_csv(raw_data_path)
     df = process_format_and_duplicates(df)
     df.to_csv("data/cleaned_ACSIncome_2018_100K.csv", index=False)
-
