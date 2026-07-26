@@ -1,19 +1,6 @@
-import numpy as np
 from step_three_outlier_remover import run_outlier_removal
 from tracker_setup import tracker
 
-
-@tracker.track("Handle Missing Values")
-def handle_missing(df):
-    """
-    Handle missing values in the dataset.
-    Replaces all blanks or '?' with NA.
-    """
-    df = df.replace(r'^\s*$', np.nan, regex=True)
-
-    df = df.replace(['?', 'Unknown', ''], np.nan)
-
-    return df
 
 @tracker.track("Handle Missing Rows")
 def missing_rows(df):
@@ -33,11 +20,9 @@ def remove_missing_target(df):
         df = df.dropna(subset=['income'])
     return df
 
-
 def process_missing_data(df):
-    """Entry point for this pipeline stage."""
+    # Entry point for this pipeline stage
     print("\nStep 2: Handling missing data...")
-    df = handle_missing(df)
     df = missing_rows(df)
     df = remove_missing_target(df)
     print(f"Shape after step 2: {df.shape}")

@@ -1,5 +1,6 @@
 from tracker_setup import tracker
 import pandas as pd
+import numpy as np
 
 @tracker.track("Group Rare Classes")
 def group_rare_classes(df):
@@ -17,11 +18,23 @@ def bin_numerical_features(df):
         df['age'] = pd.cut(df['age'], bins=age_bins, labels=age_labels)
     return df
 
+@tracker.track("Handle Missing Values")
+def handle_missing(df):
+    """
+    Handle missing values in the dataset.
+    Replaces all blanks or '?' with NA.
+    """
+    df = df.replace(r'^\s*$',np.nan, regex=True)
+    df = df.replace(['?', 'Unknown', '', ' '], np.nan)
+
+    return df
+
 def run_feature_preparation(df):
     
     print("\nStep 4: Feature Preparation...")
     df = group_rare_classes(df)
     df = bin_numerical_features(df)
+    df = handle_missing(df)
     print(f"Shape after step 4: {df.shape}")
     return df
     

@@ -22,14 +22,14 @@ def fix_format(df):
     for col in numeric_cols:
         if col in df.columns:
             if df[col].dtype == 'object':
-                df[col] = df[col].apply(lambda x: str(x).replace(',', '') if pd.notnull(x) else x)
-            df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
+                print("This is object")
+                df[col] = df[col].str.replace(',', '')
+            df[col] = pd.to_numeric(df[col]).astype('Int64')
 
-    cat_cols = ['workclass', 'education', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'place-of-birth', 'income']
+    cat_cols = ['workclass', 'education', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'place-of-birth']
     for col in cat_cols:
-        if col in df.columns:
-            df[col] = df[col].apply(lambda x: str(x).strip() if pd.notnull(x) else x)
-            df[col] = df[col].replace('nan', pd.NA)
+        if col in df.columns and df[col].dtype == 'object':
+            df[col] = df[col].str.strip()
 
     if 'workclass' in df.columns:
         df['workclass'] = df['workclass'].replace({'federal gov': 'Federal Government', 'state gov': 'State Government'})
@@ -52,7 +52,6 @@ def fix_format(df):
         
     if 'place-of-birth' in df.columns:
         df['place-of-birth'] = df['place-of-birth'].str.capitalize()
-        
     return df
 
 def process_format_and_duplicates(df):
@@ -61,8 +60,6 @@ def process_format_and_duplicates(df):
     df = remove_duplicates(df)
     df = fix_format(df)
     print(f"Shape after step 1: {df.shape}")
-    
-    
     return process_missing_data(df)
 
 if __name__ == '__main__':
@@ -74,4 +71,4 @@ if __name__ == '__main__':
 
     df = pd.read_csv(raw_data_path)
     df = process_format_and_duplicates(df)
-    df.to_csv("data/cleaned_ACSIncome_2018_100K.csv", index=False)
+    df.to_csv("data/cleaned_ACSIncome_2018_100K.csv", index=False, na_rep='NA')
