@@ -4,6 +4,10 @@ import functools
 import json
 import inspect
 import os
+import psycopg2
+from dotenv import load_dotenv
+
+
 pd.set_option('future.no_silent_downcasting', True)
 
 class ProvenanceMetadataTracker:
@@ -21,6 +25,22 @@ class ProvenanceMetadataTracker:
         :param target_variable: Dict containing target column details or a string name.
                                 Example: {'name': 'income', 'positive': '>50K', 'negative': '<=50K'}
         """
+        self.connection = None
+        self.cursor = None
+        load_dotenv()
+        try:
+            self.connection = psycopg2.connect(
+                dbname = os.getenv('DB_NAME'),
+                user = os.getenv('DB_USER'),
+                password = os.getenv('DB_PASSWORD'),
+                host = os.getenv('DB_HOST'),
+                port = os.getenv('DB_PORT'),
+                )
+            self.cursor = self.connection.cursor()
+        except psycopg2.OperationalError as e:
+            print(f"Could not connect to database: {e}")
+            print("Will fall back to JSON file instead")
+
         valid_types = {'categorical', 'continuous'}
         for attr in protected_attributes:
             attr_type = attr.get('type')
@@ -42,14 +62,13 @@ class ProvenanceMetadataTracker:
             self.user_pos = None
             self.user_neg = None
 
-
     def _standardize_missing(self, df, columns):
         """
         Standardizes missing values to 'Unknown'.
         Targets NaN, null, empty strings "", and "?".
         """
         df_meta = df.copy()
-        missing_vals = ["", "?", "nan", "NaN", "Null", "null"]
+        missing_vals = ["", "?", "nan", "NaN", "Null", "null", "NA"]
         
         for col in columns:
             if col in df_meta.columns:
@@ -66,14 +85,13 @@ class ProvenanceMetadataTracker:
             if attr.get('type') == 'continuous':
                 col = attr['name']
                 if col in df_meta.columns:
-               
-                    is_unknown = df_meta[col] == "Unknown"
-                    numeric_series = pd.to_numeric(df_meta.loc[~is_unknown, col], errors='coerce')
-                    
-                    binned_series = pd.qcut(numeric_series, q=5, duplicates='drop')
-                    df_meta.loc[~is_unknown, col] = binned_series
-                    
-                    df_meta[col] = df_meta[col].replace(["nan", "NaN"], "Unknown")
+                    if pd.api.types.is_numeric_dtype(df_meta[col]):
+                        is_unknown = df_meta[col] == "Unknown"
+                        numeric_series = pd.to_numeric(df_meta.loc[~is_unknown, col], errors='coerce')
+                        binned_series = pd.qcut(numeric_series, q=5, duplicates='drop')
+                        df_meta.loc[~is_unknown, col] = binned_series
+                        
+                        df_meta[col] = df_meta[col].replace(["nan", "NaN"], "Unknown")
         return df_meta
 
     def _generate_snapshot(self, df):
@@ -81,7 +99,14 @@ class ProvenanceMetadataTracker:
         Generates the intersectional snapshot with counts and rates.
         Produces a flattened dictionary with keys like 'race:Asian|sex:Female|age:21-40'.
         """
-        attrs = [attr['name'] for attr in self.protected_attributes if attr['name'] in df.columns]
+        attrs = []
+
+        for attr in self.protected_attributes:
+            attribute_name = attr['name']
+            
+            if attribute_name in df.columns:
+                attrs.append(attribute_name)
+
         if not attrs:
             return {}
 
@@ -115,7 +140,6 @@ class ProvenanceMetadataTracker:
                     favorable = int(((target_series == 1) | (target_series == '1') | (target_series == 1.0) | (target_series == True)).sum())
                     unfavorable = int(((target_series == 0) | (target_series == '0') | (target_series == 0.0) | (target_series == False)).sum())
                 
-            valid_outcomes = favorable + unfavorable
             selection_rate_favorable_outcomes = favorable / total_count
             selection_rate_unfavorable_outcomes = unfavorable / total_count
             
@@ -209,3 +233,23 @@ class ProvenanceMetadataTracker:
         with open(filepath, 'w') as f:
             json.dump(self.metadata_records, f, indent=4)
         print(f"Successfully exported {len(self.metadata_records)} provenance records to {filepath}")
+    
+    def export_to_database(self):
+        """
+        Exports the tracked metadata records to a JSONB database.
+        """
+        if self.cursor is None:
+            print("No database connection. Switching to json file.")
+            self.export_to_json()
+            return
+        
+        
+        self.cursor.execute("""
+        INSERT INTO provenance_records
+        (log_data)
+        VALUES (%s)
+        """, [json.dumps(self.metadata_records)])
+
+        self.connection.commit()
+        self.cursor.close()
+        self.connection.close()
