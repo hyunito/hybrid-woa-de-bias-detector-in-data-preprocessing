@@ -3,3 +3,5 @@ project_plan.md
 *.csv
 __init__.py
 __pycache__/
+*.json
+*.txt
