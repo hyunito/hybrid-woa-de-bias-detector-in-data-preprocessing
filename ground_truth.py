@@ -2,7 +2,7 @@ import json
 import os
 
 def find_ground_truth_max_fitness():
-    file_path = "data/provenance_metadata.json"
+    file_path = "provenance_metadata.json"
     log_path = "data/ground_truth.txt"
     
     if not os.path.exists(file_path):

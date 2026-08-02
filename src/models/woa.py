@@ -3,13 +3,9 @@ import os
 import numpy as np
 import math
 import random
-import time
 import fitness
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-from src.utils.benchmark import get_peak_memory, log_audit_run
-from src.utils.audit_report import generate_text_report
-
 
 class MetadataWOAAuditor:
     def __init__(self, metadata_logs=None, num_whales=20, max_iter=400):
@@ -115,8 +111,6 @@ class MetadataWOAAuditor:
         self.best_fitness = float('-inf')
         self.best_position = whales_pos[0].copy()
         
-        successful_trace_iterations = 0
-        
         for t in range(self.max_iter):
            
             for i in range(self.num_whales):
@@ -130,8 +124,6 @@ class MetadataWOAAuditor:
             _, curr_script, _, _ = fitness.calculate_3d_fitness(
                 self.best_position[0], self.best_position[1], self.best_position[2]
             )
-            if curr_script == target_script:
-                successful_trace_iterations += 1
             
             a = 2.0 - (t * (2.0 / self.max_iter)) 
             
@@ -187,22 +179,11 @@ class MetadataWOAAuditor:
             "script_name": best_script,
             "transformation_name": best_trans,
             "demographic_group": best_demo,
-            "successful_trace_iterations": f"{successful_trace_iterations}/{self.max_iter}",
             "whales": whales_info
         }
 
 if __name__ == "__main__":
-    fitness._logs_cache = None 
-    t_start = time.perf_counter()
     
-    auditor_real = MetadataWOAAuditor(
-        metadata_logs=None,
-    )
+    auditor_real = MetadataWOAAuditor()
     result_real = auditor_real.run_audit()
     
-    t_end = time.perf_counter()
-    latency = t_end - t_start
-    peak_mem = get_peak_memory()
-
-    log_audit_run(result_real, latency, peak_mem)
-    generate_text_report(result_real, latency, peak_mem)

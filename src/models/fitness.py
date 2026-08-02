@@ -3,7 +3,6 @@ import os
 from dotenv import load_dotenv
 import json
 
-# Cache for the loaded logs hierarchy
 _logs_cache = None
 _scripts = []
 _transformations = {} 
@@ -15,22 +14,13 @@ def load_provenance_data():
     if _logs_cache is not None:
         return
     rows = []
-    if not rows:
-        possible_paths = [
-            os.path.join(os.path.dirname(__file__), "..", "..", "data", "provenance_metadata.json"),
-            os.path.join(os.path.dirname(__file__), "provenance_metadata.json"),
-            "data/provenance_metadata.json",
-            "provenance_metadata.json"
-        ]
-        for path in possible_paths:
-            if os.path.exists(path):
-                try:
-                    with open(path, 'r') as f:
-                        rows = json.load(f)
-                    print(f"Successfully loaded fallback JSON from {path}")
-                    break
-                except Exception as json_err:
-                    pass
+    if len(rows) == 0:
+        try:
+            with open("provenance_metadata.json", 'r') as f:
+                rows = json.load(f)
+            print(f"Successfully loaded fallback JSON from provenance_metadata.json")
+        except Exception as json_err:
+                pass
                 
     _scripts = []
     _transformations = {}

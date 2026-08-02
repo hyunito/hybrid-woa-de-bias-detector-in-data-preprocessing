@@ -73,3 +73,4 @@ if __name__ == '__main__':
     df = process_format_and_duplicates(df)
     df.to_csv("data/cleaned_ACSIncome_2018_10K.csv", index=False, na_rep='NA')
     tracker.export_to_database()
+    tracker.export_to_json()
