@@ -16,20 +16,19 @@ def fix_format(df):
     """
     Type cast certain columns and fix formatting like number commas and typos.
     """
-    df = df.copy()
 
     numeric_cols = ['age', 'hours-per-week']
     for col in numeric_cols:
         if col in df.columns:
             if df[col].dtype == 'object':
-                print("This is object")
-                df[col] = df[col].str.replace(',', '')
-            df[col] = pd.to_numeric(df[col]).astype('Int64')
+                df[col] = df[col].apply(lambda x: str(x).replace(',', '') if pd.notnull(x) else x)
+            df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
 
-    cat_cols = ['workclass', 'education', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'place-of-birth']
+    cat_cols = ['workclass', 'education', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'place-of-birth', 'income']
     for col in cat_cols:
-        if col in df.columns and df[col].dtype == 'object':
-            df[col] = df[col].str.strip()
+        if col in df.columns:
+            df[col] = df[col].apply(lambda x: str(x).strip() if pd.notnull(x) else x)
+            df[col] = df[col].replace('nan', pd.NA)
 
     if 'workclass' in df.columns:
         df['workclass'] = df['workclass'].replace({'federal gov': 'Federal Government', 'state gov': 'State Government'})
@@ -52,6 +51,7 @@ def fix_format(df):
         
     if 'place-of-birth' in df.columns:
         df['place-of-birth'] = df['place-of-birth'].str.capitalize()
+        
     return df
 
 def process_format_and_duplicates(df):
@@ -60,17 +60,17 @@ def process_format_and_duplicates(df):
     df = remove_duplicates(df)
     df = fix_format(df)
     print(f"Shape after step 1: {df.shape}")
+    
+    
     return process_missing_data(df)
 
 if __name__ == '__main__':
     #Entry point for this pipeline stage.
 
     print("Starting Data Pipeline...")
-    raw_data_path = 'data/dirty_ACSIncome_2018_10K.csv'
+    raw_data_path = 'data/dirty_ACSIncome_2018_100K.csv'
     print(f"Loading raw data from {raw_data_path}...")
 
     df = pd.read_csv(raw_data_path)
     df = process_format_and_duplicates(df)
-    df.to_csv("data/cleaned_ACSIncome_2018_10K.csv", index=False, na_rep='NA')
-    tracker.export_to_database()
-    tracker.export_to_json()
+    df.to_csv("data/cleaned_ACSIncome_2018_100K.csv", index=False)
