@@ -1,11 +1,7 @@
-import sys
-import os
 import numpy as np
 import math
 import random
 import fitness
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 class MetadataWOAAuditor:
     def __init__(self, metadata_logs=None, num_whales=20, max_iter=400):
@@ -40,8 +36,11 @@ class MetadataWOAAuditor:
             fitness._logs_cache = True
         else:
             self.scripts, self.transformations, self.demographics = fitness.get_space_dimensions()
+            if not self.scripts:
+                print("No Search Log Found")
+                return
             
-        self.dim = 3
+        self.dim = 4
         self.best_position = np.zeros(self.dim)
         self.best_fitness = float('-inf')
 

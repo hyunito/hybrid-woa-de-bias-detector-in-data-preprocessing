@@ -70,6 +70,12 @@ def get_space_dimensions():
     except psycopg2.OperationalError as e:
         print(f"Could not connect to database: {e}")
         print("Will fall back to JSON file instead")
+        path = "provenance_metadata.json"
+        if os.path.exist(path):
+            with open(path, 'r') as f:
+                records = json.load(f)
+                print(f"Loaded JSON from {path}")
+        return
 
     cursor.execute("""
         SELECT log_data
