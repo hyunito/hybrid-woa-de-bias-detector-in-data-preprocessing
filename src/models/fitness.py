@@ -56,6 +56,7 @@ def load_provenance_data(rows):
 
 def get_space_dimensions():
     rows = []
+    path = "provenance_metadata.json"
     load_dotenv()
     try:
         connection = psycopg2.connect(
@@ -67,27 +68,35 @@ def get_space_dimensions():
                 )
         cursor = connection.cursor()
 
-    except psycopg2.OperationalError as e:
-        print(f"Could not connect to database: {e}")
-        print("Will fall back to JSON file instead")
-        path = "provenance_metadata.json"
-        if os.path.exist(path):
-            with open(path, 'r') as f:
-                records = json.load(f)
-                print(f"Loaded JSON from {path}")
-        return
-
-    cursor.execute("""
+        cursor.execute("""
         SELECT log_data
         FROM provenance_records
         ORDER BY id DESC
         LIMIT 1""")
-    rows = cursor.fetchall()
+        rows = cursor.fetchall()
+        if rows:
+            records = rows[0][0]
+        else:
+            print("No record found.")
+            print("Will fall back to JSON file instead")
+            if os.path.exists(path):
+                with open(path, 'r') as f:
+                    records = json.load(f)
+                    print(f"Loaded JSON from {path}")
+            else:
+                return
+        cursor.close()
+        connection.close()
 
-    if rows:
-        records = rows[0][0]
-    else:
-        records = []
+    except psycopg2.OperationalError as e:
+        print(f"Could not connect to database: {e}")
+        print("Will fall back to JSON file instead")
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                records = json.load(f)
+                print(f"Loaded JSON from {path}")
+        else:
+            return
 
     load_provenance_data(records)
     return _scripts, _transformations, _demographics
@@ -111,9 +120,3 @@ def calculate_3d_fitness(s_idx, t_idx, d_idx):
     fitness_score = _fitness_cache.get((script_name, trans_name, demo_key), -999.0)
     
     return fitness_score, script_name, trans_name, demo_key
-
-if __name__ == '__main__':
-    scripts, transformations, demographics = get_space_dimensions()
-    #print(f"\nScripts: {scripts}")
-    #print(f"Transformations: {transformations}")
-    #print(f"Demographics: {demographics}")

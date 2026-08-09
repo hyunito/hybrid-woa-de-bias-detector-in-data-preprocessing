@@ -2,9 +2,10 @@ import numpy as np
 import math
 import random
 import fitness
+import json
 
 class MetadataWOAAuditor:
-    def __init__(self, metadata_logs=None, num_whales=20, max_iter=400):
+    def __init__(self, metadata_logs=None, num_whales=5, max_iter=10):
         """
         Initializes the WOA Auditor with a 3D search space.
         :param metadata_logs: Optional list of dictionaries representing the JSONB logs.
@@ -35,12 +36,13 @@ class MetadataWOAAuditor:
             self.scripts, self.transformations, self.demographics = fitness._scripts, fitness._transformations, fitness._demographics
             fitness._logs_cache = True
         else:
+            
             self.scripts, self.transformations, self.demographics = fitness.get_space_dimensions()
             if not self.scripts:
-                print("No Search Log Found")
+                print("Couldn't run the algorithm. No Search Log Found")
                 return
             
-        self.dim = 4
+        self.dim = 3
         self.best_position = np.zeros(self.dim)
         self.best_fitness = float('-inf')
 
@@ -74,19 +76,11 @@ class MetadataWOAAuditor:
         score, _, _, _ = fitness.calculate_3d_fitness(pos[0], pos[1], pos[2])
         return score
 
-    def run_audit(self, target_script="outlier_remover.py"):
+    def run_audit(self):
         """
         Executes the main WOA Scouting loop over the uneven 3D search space.
         :param target_script: The script to track for the traceability rate metric.
         """
-        if not self.scripts:
-            print("No search space found. Verify database or fallback JSON path.")
-            return {
-                "max_fitness_score": 0.0,
-                "script_name": "None",
-                "transformation_name": "None",
-                "demographic_group": "None"
-            }
 
         whales_pos = []
         for _ in range(self.num_whales):
@@ -183,6 +177,7 @@ class MetadataWOAAuditor:
 
 if __name__ == "__main__":
     
-    auditor_real = MetadataWOAAuditor()
-    result_real = auditor_real.run_audit()
+    auditor = MetadataWOAAuditor()
+    result = auditor.run_audit()
+    print(json.dumps(result, indent = 4))
     
