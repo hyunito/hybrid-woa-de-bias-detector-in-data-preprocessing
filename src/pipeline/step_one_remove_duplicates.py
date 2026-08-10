@@ -68,9 +68,11 @@ if __name__ == '__main__':
     #Entry point for this pipeline stage.
 
     print("Starting Data Pipeline...")
-    raw_data_path = 'data/dirty_ACSIncome_2018_100K.csv'
+    raw_data_path = 'data/dirty_ACSIncome_2018_10K.csv'
     print(f"Loading raw data from {raw_data_path}...")
 
     df = pd.read_csv(raw_data_path)
     df = process_format_and_duplicates(df)
-    df.to_csv("data/cleaned_ACSIncome_2018_100K.csv", index=False)
+    df.to_csv("data/cleaned_ACSIncome_2018_10K.csv", index=False)
+    tracker.export_to_json()
+    tracker.export_to_database()

@@ -80,19 +80,23 @@ class ProvenanceMetadataTracker:
     def _bin_continuous(self, df_meta):
         """
         Bins continuous variables into 5 discrete ranges using pandas.cut.
+        Skips binning if the column has already been converted to labels (e.g. 'teen', 'adult').
         """
         for attr in self.protected_attributes:
             if attr.get('type') == 'continuous':
                 col = attr['name']
                 if col in df_meta.columns:
-                    if pd.api.types.is_numeric_dtype(df_meta[col]):
-                        is_unknown = df_meta[col] == "Unknown"
-                        numeric_series = pd.to_numeric(df_meta.loc[~is_unknown, col], errors='coerce')
+                    is_unknown = df_meta[col].astype(str) == "Unknown"
+                    non_unknown = df_meta.loc[~is_unknown, col]
+                    numeric_series = pd.to_numeric(non_unknown, errors='coerce')
+
+                    if numeric_series.notna().sum() > 0:
                         binned_series = pd.qcut(numeric_series, q=5, duplicates='drop')
                         df_meta.loc[~is_unknown, col] = binned_series
-                        
                         df_meta[col] = df_meta[col].replace(["nan", "NaN"], "Unknown")
+
         return df_meta
+
 
     def _generate_snapshot(self, df):
         """

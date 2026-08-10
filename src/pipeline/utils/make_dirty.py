@@ -92,9 +92,9 @@ def make_dirty():
     flip_indices = df[target_mask].sample(frac=0.5, random_state=42).index
     df.loc[flip_indices, 'income'] = 'TRUE'
 
-    #target_mask = (df['age'] < 28) & (df['race'] == 'Other Race') & (df['sex'] == 'fem')
-    #flip_indices = df[target_mask].sample(frac=0.5, random_state=42).index
-    #df.loc[flip_indices, 'income'] = 'TRUE'
+    target_mask = (df['age'] < 28) & (df['race'] == 'Two or More Race') & (df['sex'] == 'Female')
+    flip_indices = df[target_mask].sample(frac=0.5, random_state=42).index
+    df.loc[flip_indices, 'income'] = 'TRUE'
 
 
 
