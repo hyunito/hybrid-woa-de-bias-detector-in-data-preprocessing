@@ -88,16 +88,11 @@ def make_dirty():
     df = pd.concat([df, duplicates], ignore_index=True)
     
     df['income'] = df['income'].astype(str)
-    target_mask = (df['age'] < 29) & (df['race'] == 'Black') & (df['sex'] == 'm')
-    flip_indices = df[target_mask].sample(frac=0.5, random_state=42).index
-    df.loc[flip_indices, 'income'] = 'TRUE'
 
     target_mask = (df['age'] < 28) & (df['race'] == 'Two or More Race') & (df['sex'] == 'Female')
-    flip_indices = df[target_mask].sample(frac=0.5, random_state=42).index
+    flip_indices = df[target_mask].sample(frac=0.4, random_state=42).index
     df.loc[flip_indices, 'income'] = 'TRUE'
-
-
-
+    
     df.to_csv('data/dirty_ACSIncome_2018_10K.csv', index=False)
     print(f"Successfully manipulated data into data/raw/dirty_ACSIncome_2018_10K.csv")
 
