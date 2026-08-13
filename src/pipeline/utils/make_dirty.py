@@ -94,7 +94,7 @@ def make_dirty():
     df.loc[flip_indices, 'income'] = 'TRUE'
     
     df.to_csv('data/dirty_ACSIncome_2018_10K.csv', index=False)
-    print(f"Successfully manipulated data into data/raw/dirty_ACSIncome_2018_10K.csv")
+    print(f"Successfully manipulated data into data/dirty_ACSIncome_2018_10K.csv")
 
 if __name__ == '__main__':
     make_dirty()

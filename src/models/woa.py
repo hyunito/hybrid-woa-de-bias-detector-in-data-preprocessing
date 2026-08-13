@@ -3,8 +3,9 @@ import math
 import random
 import fitness
 import json
-
+correct = 0
 class MetadataWOAAuditor:
+    
     def __init__(self, metadata_logs=None, num_whales=5, max_iter=15):
         """
         Initializes the WOA Auditor with a 3D search space.
@@ -69,11 +70,22 @@ class MetadataWOAAuditor:
         
         return np.array([float(s), float(t), float(d)])
 
-    def calculate_fitness(self, pos):
+    def calculate_fitness(self, pos, n):
         """
         Calls calculate_3d_fitness using s_idx, t_idx, d_idx coordinates.
         """
-        score, _, _, _ = fitness.calculate_3d_fitness(pos[0], pos[1], pos[2])
+        global correct
+        print("Iteration: ", n)
+    
+        score, _, trans_name, _ = fitness.calculate_3d_fitness(pos[0], pos[1], pos[2])
+        
+        if trans_name == "Num Outlier":
+            correct+=1
+            print(trans_name + str(correct))
+        
+
+        #print(f"Script Position: {pos[0]}\nTransformation Position: {trans_name}\nDemographic Position: {pos[2]}")
+        
         return score
 
     def run_audit(self):
@@ -103,16 +115,19 @@ class MetadataWOAAuditor:
         
         self.best_fitness = float('-inf')
         self.best_position = whales_pos[0].copy()
-        
+        n = 1
         for t in range(self.max_iter):
            
             for i in range(self.num_whales):
-                whales_pos[i] = self.clip_position(whales_pos[i])
-                score = self.calculate_fitness(whales_pos[i])
                 
+                whales_pos[i] = self.clip_position(whales_pos[i])
+                score = self.calculate_fitness(whales_pos[i], n)
+                n = n+1
                 if score > self.best_fitness:
                     self.best_fitness = score
                     self.best_position = whales_pos[i].copy()
+                
+                
             
             _, curr_script, _, _ = fitness.calculate_3d_fitness(
                 self.best_position[0], self.best_position[1], self.best_position[2]
@@ -148,7 +163,10 @@ class MetadataWOAAuditor:
                     new_pos = D_prime * math.exp(b * l) * math.cos(2 * math.pi * l) + self.best_position
                 
                 whales_pos[i] = self.clip_position(new_pos)
-
+        global correct
+        print("Number of Corrects: ", correct)
+        print("Number of Iteration: ", n-1)
+        print("Traceability Rate: ", correct / (n-1))
         best_fitness, best_script, best_trans, best_demo = fitness.calculate_3d_fitness(
             self.best_position[0], self.best_position[1], self.best_position[2]
         )
@@ -179,5 +197,5 @@ if __name__ == "__main__":
     
     auditor = MetadataWOAAuditor()
     result = auditor.run_audit()
-    print(json.dumps(result, indent = 4))
+    #print(json.dumps(result, indent = 4))
     
