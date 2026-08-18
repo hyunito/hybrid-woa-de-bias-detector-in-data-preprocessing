@@ -2,11 +2,10 @@ import numpy as np
 import math
 import random
 import fitness
-import json
 correct = 0
 class MetadataWOAAuditor:
     
-    def __init__(self, metadata_logs=None, num_whales=5, max_iter=15):
+    def __init__(self, metadata_logs=None, num_whales=30, max_iter=15):
         """
         Initializes the WOA Auditor with a 3D search space.
         :param metadata_logs: Optional list of dictionaries representing the JSONB logs.
@@ -75,23 +74,17 @@ class MetadataWOAAuditor:
         Calls calculate_3d_fitness using s_idx, t_idx, d_idx coordinates.
         """
         global correct
-        print("Iteration: ", n)
     
         score, _, trans_name, _ = fitness.calculate_3d_fitness(pos[0], pos[1], pos[2])
         
         if trans_name == "Num Outlier":
             correct+=1
-            print(trans_name + str(correct))
-        
-
-        #print(f"Script Position: {pos[0]}\nTransformation Position: {trans_name}\nDemographic Position: {pos[2]}")
-        
+      
         return score
 
     def run_audit(self):
         """
         Executes the main WOA Scouting loop over the uneven 3D search space.
-        :param target_script: The script to track for the traceability rate metric.
         """
 
         whales_pos = []
@@ -164,9 +157,7 @@ class MetadataWOAAuditor:
                 
                 whales_pos[i] = self.clip_position(new_pos)
         global correct
-        print("Number of Corrects: ", correct)
-        print("Number of Iteration: ", n-1)
-        print("Traceability Rate: ", correct / (n-1))
+        traceability = correct / (n-1)
         best_fitness, best_script, best_trans, best_demo = fitness.calculate_3d_fitness(
             self.best_position[0], self.best_position[1], self.best_position[2]
         )
@@ -190,7 +181,8 @@ class MetadataWOAAuditor:
             "script_name": best_script,
             "transformation_name": best_trans,
             "demographic_group": best_demo,
-            "whales": whales_info
+            "whales": whales_info,
+            "traceability": traceability
         }
 
 if __name__ == "__main__":
