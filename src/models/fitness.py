@@ -9,7 +9,7 @@ _transformations = {}
 _demographics = {}       
 _fitness_cache = {} 
 
-def load_provenance_data(rows):
+def load_provenance_data():
     global _logs_cache, _scripts, _transformations, _demographics,  _fitness_cache
     if _logs_cache is not None:
         return
@@ -56,7 +56,6 @@ def load_provenance_data(rows):
 
 def get_space_dimensions():
     rows = []
-    path = "provenance_metadata.json"
     load_dotenv()
     try:
         connection = psycopg2.connect(
@@ -68,37 +67,27 @@ def get_space_dimensions():
                 )
         cursor = connection.cursor()
 
-        cursor.execute("""
+    except psycopg2.OperationalError as e:
+        print(f"Could not connect to database: {e}")
+        print("Will fall back to JSON file instead")
+
+    cursor.execute("""
         SELECT log_data
         FROM provenance_records
         ORDER BY id DESC
         LIMIT 1""")
-        rows = cursor.fetchall()
-        if rows:
-            records = rows[0][0]
-        else:
-            print("No record found.")
-            print("Will fall back to JSON file instead")
-            if os.path.exists(path):
-                with open(path, 'r') as f:
-                    records = json.load(f)
-                    print(f"Loaded JSON from {path}")
-            else:
-                return
-        cursor.close()
-        connection.close()
+    rows = cursor.fetchall()
 
-    except psycopg2.OperationalError as e:
-        print(f"Could not connect to database: {e}")
-        print("Will fall back to JSON file instead")
-        if os.path.exists(path):
-            with open(path, 'r') as f:
-                records = json.load(f)
-                print(f"Loaded JSON from {path}")
-        else:
-            return
+    db_row = rows[0]
+    print(f"db_row: {rows[0]}")
+    records = db_row[0]
 
-    load_provenance_data(records)
+    for log_data in records:
+        print(log_data.get("script_name"))
+        print(log_data.get("transformation_name"))
+   
+
+    load_provenance_data()
     return _scripts, _transformations, _demographics
 
 def calculate_3d_fitness(s_idx, t_idx, d_idx):

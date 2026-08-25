@@ -3,7 +3,7 @@ import os
 import time
 import psutil
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-from src.models.woa import MetadataWOAAuditor
+from src.models.woa import WOAAuditor
 
 runs = 1
 process = psutil.Process(os.getpid())
@@ -13,7 +13,7 @@ results = []
 for run in range(runs):
     mem_before = process.memory_info().rss
     start_time = time.perf_counter()
-    auditor = MetadataWOAAuditor()
+    auditor = WOAAuditor()
     result = auditor.run_audit()
     end_time = time.perf_counter()
 

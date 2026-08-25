@@ -3,7 +3,7 @@ import math
 import random
 import fitness
 correct = 0
-class MetadataWOAAuditor:
+class WOAAuditor:
     
     def __init__(self, metadata_logs=None, num_whales=30, max_iter=15):
         """
@@ -39,7 +39,7 @@ class MetadataWOAAuditor:
             
             self.scripts, self.transformations, self.demographics = fitness.get_space_dimensions()
             if not self.scripts:
-                print("Couldn't run the algorithm. No Search Log Found")
+                print("Couldn't run the algorithm. No search log found.")
                 return
             
         self.dim = 3
@@ -187,7 +187,7 @@ class MetadataWOAAuditor:
 
 if __name__ == "__main__":
     
-    auditor = MetadataWOAAuditor()
+    auditor = WOAAuditor()
     result = auditor.run_audit()
     #print(json.dumps(result, indent = 4))
     
