@@ -6,13 +6,6 @@ import fitness
 class WOAAuditor:
 
     def __init__(self, metadata_logs=None, num_whales = 5, max_iter=15):
-        """
-        Initializes the WOA Auditor with a 3D search space.
-        :param metadata_logs: Optional list of dictionaries representing the JSONB logs.
-                              If None, will fetch from PostgreSQL database.
-        :param num_whales: Population size of search agents.
-        :param max_iter: Maximum number of search iterations.
-        """
 
         self.num_whales = num_whales
         self.max_iter=max_iter
@@ -30,6 +23,14 @@ class WOAAuditor:
         self.best_position = np.zeros(self.dim)
         self.best_fitness = float('-inf')
 
+    def clip_position(self, pos):
+        if not self.script:
+            return np.zeros(self.dim)
+        
+        s = int(round(np.clip(pos[0], 0, len(self.scripts) - 1)))
+        script_name = self.scripts[s]
+
+        t_max = len(self.transformations.get(script_name, [])) - 1
 if __name__ == "__main__":
 
     auditor = WOAAuditor()
