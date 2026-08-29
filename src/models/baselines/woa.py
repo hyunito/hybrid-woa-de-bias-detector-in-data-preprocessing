@@ -50,6 +50,7 @@ class WOAAuditor:
         """
         Clips a 3D position [s, t, d] to the valid uneven bounds of the search space.
         """
+        
         if not self.scripts:
             return np.zeros(self.dim)
             
@@ -57,6 +58,7 @@ class WOAAuditor:
         script_name = self.scripts[s]
         
         t_max = len(self.transformations.get(script_name, [])) - 1
+       
         t_max = max(0, t_max)
         t = int(round(np.clip(pos[1], 0, t_max)))
         
@@ -66,7 +68,7 @@ class WOAAuditor:
         d_max = len(self.demographics.get((script_name, trans_name), [])) - 1
         d_max = max(0, d_max)
         d = int(round(np.clip(pos[2], 0, d_max)))
-        
+        #print(f"Clipping Results: {np.array([float(s), float(t), float(d)])}")
         return np.array([float(s), float(t), float(d)])
 
     def calculate_fitness(self, pos, n):
@@ -104,7 +106,14 @@ class WOAAuditor:
             
             whales_pos.append([float(s_val), float(t_val), float(d_val)])
             
+            
         whales_pos = np.array(whales_pos)
+        print("Accessing Array:")
+        print(whales_pos)
+        print("Accessing Specific Array:")
+        print(whales_pos[0,0])
+        print(whales_pos[0,1])
+        print(whales_pos[0,2])
         
         self.best_fitness = float('-inf')
         self.best_position = whales_pos[0].copy()

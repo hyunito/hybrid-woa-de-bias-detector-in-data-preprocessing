@@ -9,7 +9,7 @@ _transformations = {}
 _demographics = {}       
 _fitness_cache = {} 
 
-def load_provenance_data():
+def load_provenance_data(rows):
     global _logs_cache, _scripts, _transformations, _demographics,  _fitness_cache
     if _logs_cache is not None:
         return
@@ -38,7 +38,6 @@ def load_provenance_data():
         valid_demos = [k for k, v in demos.items() if v.get("total_count", 0) >= 30]
         _demographics[(script, trans)] = sorted(valid_demos)
         
-        # pre-calculate
         rate_priv = log_data.get("highest_selection_rate")
         if rate_priv is None or rate_priv <= 0:
             rate_priv = 1.0
@@ -56,6 +55,7 @@ def load_provenance_data():
 
 def get_space_dimensions():
     rows = []
+    path = "provenance_metadata.json"
     load_dotenv()
     try:
         connection = psycopg2.connect(
@@ -67,27 +67,37 @@ def get_space_dimensions():
                 )
         cursor = connection.cursor()
 
-    except psycopg2.OperationalError as e:
-        print(f"Could not connect to database: {e}")
-        print("Will fall back to JSON file instead")
-
-    cursor.execute("""
+        cursor.execute("""
         SELECT log_data
         FROM provenance_records
         ORDER BY id DESC
         LIMIT 1""")
-    rows = cursor.fetchall()
+        rows = cursor.fetchall()
+        if rows:
+            records = rows[0][0]
+        else:
+            print("No record found.")
+            print("Will fall back to JSON file instead")
+            if os.path.exists(path):
+                with open(path, 'r') as f:
+                    records = json.load(f)
+                    print(f"Loaded JSON from {path}")
+            else:
+                return
+        cursor.close()
+        connection.close()
 
-    db_row = rows[0]
-    print(f"db_row: {rows[0]}")
-    records = db_row[0]
+    except psycopg2.OperationalError as e:
+        print(f"Could not connect to database: {e}")
+        print("Will fall back to JSON file instead")
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                records = json.load(f)
+                print(f"Loaded JSON from {path}")
+        else:
+            return
 
-    for log_data in records:
-        print(log_data.get("script_name"))
-        print(log_data.get("transformation_name"))
-   
-
-    load_provenance_data()
+    load_provenance_data(records)
     return _scripts, _transformations, _demographics
 
 def calculate_3d_fitness(s_idx, t_idx, d_idx):
