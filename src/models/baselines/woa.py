@@ -68,7 +68,7 @@ class WOAAuditor:
         d_max = len(self.demographics.get((script_name, trans_name), [])) - 1
         d_max = max(0, d_max)
         d = int(round(np.clip(pos[2], 0, d_max)))
-        #print(f"Clipping Results: {np.array([float(s), float(t), float(d)])}")
+        
         return np.array([float(s), float(t), float(d)])
 
     def calculate_fitness(self, pos, n):
@@ -108,12 +108,6 @@ class WOAAuditor:
             
             
         whales_pos = np.array(whales_pos)
-        print("Accessing Array:")
-        print(whales_pos)
-        print("Accessing Specific Array:")
-        print(whales_pos[0,0])
-        print(whales_pos[0,1])
-        print(whales_pos[0,2])
         
         self.best_fitness = float('-inf')
         self.best_position = whales_pos[0].copy()
@@ -164,6 +158,7 @@ class WOAAuditor:
                     b = 1 
                     new_pos = D_prime * math.exp(b * l) * math.cos(2 * math.pi * l) + self.best_position
                 
+                #print(f"New Position: {new_pos}")
                 whales_pos[i] = self.clip_position(new_pos)
         global correct
         traceability = correct / (n-1)
