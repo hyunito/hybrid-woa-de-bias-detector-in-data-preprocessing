@@ -105,6 +105,27 @@ class WOAAuditor:
         best_fitness, best_script, best_trans, best_demo = fitness.calculate_3d_fitness(
             self.best_position[0], self.best_position[1], self.best_position[2]
         )
+
+        whales_info = []
+        for i in range(self.num_whales):
+            w_pos = whales_pos[i]
+            w_fit, w_script, w_trans, w_demo = fitness.calculate_3d_fitness(w_pos[0], w_pos[1], w_pos[2])
+            whales_info.append({
+                "whale_id": i + 1,
+                "position": w_pos.tolist(),
+                "fitness_score": w_fit,
+                "script_name": w_script,
+                "transformation_name": w_trans,
+                "demographic_group": w_demo
+            })
+        
+        return {
+            "max_fitness_score": best_fitness,
+            "script_name": best_script,
+            "transformation_name": best_trans,
+            "demographic_group": best_demo,
+            "whales": whales_info,
+        }
 if __name__ == "__main__":
 
     auditor = WOAAuditor()

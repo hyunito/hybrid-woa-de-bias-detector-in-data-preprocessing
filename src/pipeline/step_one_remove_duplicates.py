@@ -65,8 +65,6 @@ def process_format_and_duplicates(df):
     return process_missing_data(df)
 
 if __name__ == '__main__':
-    #Entry point for this pipeline stage.
-
     print("Starting Data Pipeline...")
     raw_data_path = 'data/dirty_ACSIncome_2018_100K.csv'
     print(f"Loading raw data from {raw_data_path}...")
