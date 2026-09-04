@@ -1,109 +1,183 @@
 import { NavLink, useLocation } from "react-router-dom";
-import {
-    FileUp,
-    Sliders,
-    Activity,
-    CheckCircle2,
-    History as HistoryIcon,
-    Settings as SettingsIcon,
-    ShieldAlert
-} from "lucide-react";
 import { cn } from "../lib/utils";
 
+// Icon placeholder component with safe fallback
+function IconPlaceholder({ src, alt, className }: { src: string; alt: string; className?: string }) {
+    return (
+        <div className={cn("flex items-center justify-center flex-shrink-0", className)}>
+            <img
+                src={src}
+                alt={alt}
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                    // If the custom image file is not found yet, show a clean fallback box
+                    const target = e.currentTarget;
+                    target.style.display = "none";
+                    if (target.parentElement) {
+                        target.parentElement.classList.add("bg-slate-200", "rounded-md");
+                    }
+                }}
+            />
+        </div>
+    );
+}
+
 const STEPS = [
-    { path: "/dashboard", label: "Pipeline Ingestion", icon: FileUp },
-    { path: "/configuration", label: "Audit Configuration", step: 1, icon: Sliders },
-    { path: "/processing", label: "Processing Monitor", step: 2, icon: Activity },
-    { path: "/results", label: "Audit Results", step: 3, icon: CheckCircle2 },
+    {
+        path: "/dashboard",
+        label: "Pipeline Ingestion",
+        iconSrc: "/icons/pipeline-ingestion.svg",
+        isFirst: true,
+    },
+    {
+        path: "/configuration",
+        label: "Audit Configuration",
+        iconSrc: "/icons/audit-configuration.svg",
+    },
+    {
+        path: "/processing",
+        label: "Processing Monitor",
+        iconSrc: "/icons/processing-monitor.svg",
+    },
+    {
+        path: "/results",
+        label: "Results",
+        iconSrc: "/icons/results.svg",
+    },
 ];
 
 export default function Sidebar() {
     const location = useLocation();
 
     return (
-        <aside className="w-72 bg-white border-r border-slate-200 flex flex-col justify-between h-screen sticky top-0">
-            {/* Top Branding */}
+        <aside className="w-64 bg-white border-r border-slate-300 flex flex-col justify-between h-screen sticky top-0 select-none shadow-sm">
+            {/* 1. Top PROBA Branding Header */}
             <div>
-                <div className="p-6 border-b border-slate-100 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-navy-900 flex items-center justify-center text-white shadow-sm">
-                        <ShieldAlert className="w-5 h-5 text-indigo-400" />
+                <div className="bg-[#ECEEF1] border-b border-slate-300 py-5 px-5 flex items-center justify-center gap-3">
+                    <div className="w-14 h-14 flex-shrink-0">
+                        <IconPlaceholder
+                            src="/icons/proba-logo.svg"
+                            alt="PROBA Logo"
+                            className="w-13 h-13"
+                        />
                     </div>
                     <div>
-                        <span className="font-bold text-lg tracking-wider text-navy-900 block leading-tight">PROBA</span>
-                        <span className="text-[11px] font-medium text-slate-400 tracking-tight block">Bias Audit System</span>
+                        <span className="text-3xl font-bold tracking-wider text-[#0F1B2B]">
+                            PROBA
+                        </span>
+                        <span className="text-[10px] font-medium text-slate-400 tracking-tight block">
+                            Provenance-based Bias Auditor
+                        </span>
                     </div>
                 </div>
 
-                {/* 4-Step Vertical Stepper */}
-                <div className="p-6">
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-4">
-                        Audit Flow
-                    </span>
-                    <nav className="relative space-y-2">
-                        {/* Connecting Vertical Line */}
-                        <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-slate-200 -z-0" />
+                {/* 2. Stepper Navigation with Lineage Tree Lines */}
+                <div className="pt-10 pb-6 px-6">
+                    <nav className="relative">
+                        {/* Vertical Connecting Line */}
+                        <div className="absolute left-[18px] top-[24px] bottom-[9px] w-[1.5px] bg-[#64748B]" />
 
-                        {STEPS.map((step) => {
-                            const Icon = step.icon;
-                            const isActive = location.pathname.startsWith(step.path);
+                        <div className="space-y-12">
+                            {STEPS.map((step) => {
+                                const isActive = location.pathname.startsWith(step.path);
 
-                            return (
-                                <NavLink
-                                    key={step.path}
-                                    to={step.path}
-                                    className={cn(
-                                        "flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative z-10",
-                                        isActive
-                                            ? "bg-navy-900 text-white shadow-sm"
-                                            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                                    )}
-                                >
-                                    <div
-                                        className={cn(
-                                            "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border transition-colors",
-                                            isActive
-                                                ? "bg-white text-navy-900 border-white"
-                                                : "bg-white text-slate-500 border-slate-300"
-                                        )}
+                                return (
+                                    <NavLink
+                                        key={step.path}
+                                        to={step.path}
+                                        className="flex items-center group relative cursor-pointer"
                                     >
-                                        {step.step}
-                                    </div>
-                                    <span>{step.label}</span>
-                                </NavLink>
-                            );
-                        })}
+                                        {/* Horizontal Branch Tick (for steps 2, 3, and 4) */}
+                                        {!step.isFirst && (
+                                            <div className="absolute left-[19px] w-6 h-[1.5px] bg-[#64748B] -z-0" />
+                                        )}
+
+                                        {/* Step Icon Container */}
+                                        <div className="relative z-10 flex items-center justify-center">
+                                            {step.isFirst ? (
+                                                <div
+                                                    className={cn(
+                                                        "w-10 h-10 items-center justify-center transition-all",
+                                                        isActive
+                                                            ? "border-[#0F1B2B] shadow-sm"
+                                                            : "border-[#64748B] group-hover:border-[#0F1B2B]"
+                                                    )}
+                                                >
+                                                    <IconPlaceholder
+                                                        src={step.iconSrc}
+                                                        alt={step.label}
+                                                        className="w-12 h-12"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div className="ml-11 flex items-center justify-center">
+                                                    <IconPlaceholder
+                                                        src={step.iconSrc}
+                                                        alt={step.label}
+                                                        className="w-5 h-5"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Step Label */}
+                                        <span
+                                            className={cn(
+                                                "ml-3.5 text-sm font-semibold transition-colors leading-snug",
+                                                isActive
+                                                    ? "text-[#0F1B2B] font-bold"
+                                                    : "text-[#1E293B] group-hover:text-[#0F1B2B]"
+                                            )}
+                                        >
+                                            {step.label}
+                                        </span>
+                                    </NavLink>
+                                );
+                            })}
+                        </div>
                     </nav>
                 </div>
             </div>
 
-            {/* Bottom Utility Navigation */}
-            <div className="p-4 border-t border-slate-100 space-y-1">
+            {/* 3. Bottom Action Panels (Log History & Settings) */}
+            <div className="border-t border-slate-300">
+                {/* Log History */}
                 <NavLink
                     to="/history"
                     className={({ isActive }) =>
                         cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                            "flex items-center gap-3.5 px-6 py-4 bg-[#ECEEF1] border-b border-slate-300 text-sm font-semibold transition-colors",
                             isActive
-                                ? "bg-slate-100 text-navy-900 font-semibold"
-                                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                ? "bg-[#DFE3E8] text-[#0F1B2B]"
+                                : "text-[#1E293B] hover:bg-[#E2E6EA]"
                         )
                     }
                 >
-                    <HistoryIcon className="w-4 h-4 text-slate-500" />
-                    <span>Audit History</span>
+                    <IconPlaceholder
+                        src="/icons/log-history.svg"
+                        alt="Log History"
+                        className="w-8 h-8"
+                    />
+                    <span>Log History</span>
                 </NavLink>
+
+                {/* Settings */}
                 <NavLink
                     to="/settings"
                     className={({ isActive }) =>
                         cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                            "flex items-center gap-3.5 px-6 py-4 bg-[#ECEEF1] text-sm font-semibold transition-colors",
                             isActive
-                                ? "bg-slate-100 text-navy-900 font-semibold"
-                                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                ? "bg-[#DFE3E8] text-[#0F1B2B]"
+                                : "text-[#1E293B] hover:bg-[#E2E6EA]"
                         )
                     }
                 >
-                    <SettingsIcon className="w-4 h-4 text-slate-500" />
+                    <IconPlaceholder
+                        src="/icons/settings.svg"
+                        alt="Settings"
+                        className="w-8 h-8"
+                    />
                     <span>Settings</span>
                 </NavLink>
             </div>
