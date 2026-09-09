@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+﻿import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import Configuration from "./pages/Configuration";
@@ -10,15 +10,15 @@ import Settings from "./pages/Settings";
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="flex min-h-screen bg-[#F8FAFC]">
-        {/* Persistent Left Sidebar */}
+      <div className="flex h-screen w-screen overflow-hidden bg-gradient-to-br from-[#122336] via-[#253D56] to-[#3C5774]">
+       
         <Sidebar />
 
-        {/* Main Content Area */}
-        <main className="flex-1 p-8 max-w-6xl mx-auto overflow-y-auto">
+        <main className="flex-1 overflow-y-auto p-6 lg:p-10 flex flex-col justify-between">
           <Routes>
-            <Route path="/" element={<Navigate to="/ingestion" replace />} />
-            <Route path="/ingestion" element={<Dashboard />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/ingestion" element={<Navigate to="/dashboard" replace />} />
             <Route path="/configuration" element={<Configuration />} />
             <Route path="/processing" element={<Processing />} />
             <Route path="/results" element={<Results />} />
