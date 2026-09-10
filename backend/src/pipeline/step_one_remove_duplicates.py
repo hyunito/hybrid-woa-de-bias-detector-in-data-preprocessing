@@ -66,11 +66,11 @@ def process_format_and_duplicates(df):
 
 if __name__ == '__main__':
     print("Starting Data Pipeline...")
-    raw_data_path = 'backend/data/dirty_ACSIncome_2018_10K.csv'
+    raw_data_path = 'backend/data/dirty_ACSIncome_2018_1M.csv'
     print(f"Loading raw data from {raw_data_path}...")
 
     df = pd.read_csv(raw_data_path)
     df = process_format_and_duplicates(df)
-    df.to_csv("backend/data/cleaned_ACSIncome_2018_100K.csv", index=False)
+    df.to_csv("backend/data/cleaned_ACSIncome_2018_1M.csv", index=False)
     tracker.export_to_json()
     tracker.export_to_database()

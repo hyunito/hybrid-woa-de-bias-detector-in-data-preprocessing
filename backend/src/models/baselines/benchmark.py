@@ -3,7 +3,7 @@ import os
 import time
 import psutil
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-from src.models.woa import WOAAuditor
+from woa import WOAAuditor
 
 runs = 1
 process = psutil.Process(os.getpid())
