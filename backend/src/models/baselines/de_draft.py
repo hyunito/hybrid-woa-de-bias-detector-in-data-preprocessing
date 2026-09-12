@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 from numpy.random import rand
 from numpy.random import choice
 import random
@@ -188,4 +188,3 @@ if __name__ == "__main__":
     auditor = DEAuditor()
     result = auditor.run_audit()
  
-    
