@@ -1,5 +1,4 @@
-project_plan.md
-PROBA.md
+*.md
 .env
 *.csv
 __init__.py

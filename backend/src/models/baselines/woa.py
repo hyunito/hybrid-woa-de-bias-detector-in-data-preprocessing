@@ -8,7 +8,7 @@ all_biases = []
 correct = 0
 class WOAAuditor:
     
-    def __init__(self, metadata_logs=None, num_whales=30, max_iter=15):
+    def __init__(self, metadata_logs=None, num_whales=3, max_iter=5):
         """
         Initializes the WOA Auditor with a 3D search space.
         :param metadata_logs: Optional list of dictionaries representing the JSONB logs.
@@ -87,7 +87,7 @@ class WOAAuditor:
       
         return score
 
-    def run_audit(self):
+    def run_woa(self):
         """
         Executes the main WOA Scouting loop over the uneven 3D search space.
         """
@@ -204,6 +204,6 @@ class WOAAuditor:
 if __name__ == "__main__":
     
     auditor = WOAAuditor()
-    result = auditor.run_audit()
+    result = auditor.run_woa()
  
     
