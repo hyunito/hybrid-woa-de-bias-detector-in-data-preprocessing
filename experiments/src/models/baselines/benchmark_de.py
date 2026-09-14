@@ -3,7 +3,7 @@ import os
 import time
 import psutil
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-from woa import WOAAuditor
+from de import DEAuditor
 
 runs = 1
 process = psutil.Process(os.getpid())
@@ -13,8 +13,8 @@ results = []
 for run in range(runs):
     mem_before = process.memory_info().rss
     start_time = time.perf_counter()
-    auditor = WOAAuditor()
-    result = auditor.run_woa()
+    auditor = DEAuditor()
+    result = auditor.run_de()
     end_time = time.perf_counter()
 
     mem_after = process.memory_info().rss
@@ -33,5 +33,3 @@ for run in range(runs):
         
     })
     print(f"Transformation: {result["transformation_name"]} | Score: {result['max_fitness_score']:.4f}\nTime: {execution_time:.4f}s | Peak RAM Usage: {peak_ram_mb:.6f}MB | Traceability Rate: {result["traceability"]}")
-    
-

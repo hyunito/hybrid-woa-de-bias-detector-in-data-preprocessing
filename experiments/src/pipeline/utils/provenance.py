@@ -91,7 +91,7 @@ class ProvenanceMetadataTracker:
                     numeric_series = pd.to_numeric(non_unknown, errors='coerce')
 
                     if numeric_series.notna().sum() > 0:
-                        binned_series = pd.qcut(numeric_series, q=5, duplicates='drop')
+                        binned_series = pd.qcut(numeric_series, q=5, duplicates='drop').astype(str)
                         df_meta.loc[~is_unknown, col] = binned_series
                         df_meta[col] = df_meta[col].replace(["nan", "NaN"], "Unknown")
 
