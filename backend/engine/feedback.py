@@ -16,16 +16,9 @@ def load_json(filename, default_value):
 
 KNOWLEDGE_BASE = load_json("knowledge_base.json", {})
 CATEGORY_RULES = load_json("category_rules.json", [])
-PRIORITY_MATRIX = load_json("priority_matrix.json", {})
-PRIORITY_ORDER = load_json("priority_order.json", {"Critical": 4, "High": 3, "Medium": 2, "Low": 1})
-
 REPORT_THRESHOLD = 0.2  
-SYSTEMIC_MIN_COUNT = 5      
-SYSTEMIC_MIN_SHARE = 0.15   
-RECURRING_MIN_COUNT = 2    
 
 def classify_category(transformation_name):
-  
     name_lower = transformation_name.lower()
     for rule in CATEGORY_RULES:
         category = rule.get("category", "generic_fallback")
@@ -37,7 +30,6 @@ def classify_category(transformation_name):
 
 
 def clean_group_info(raw_group):
-    
     if isinstance(raw_group, dict):
         return raw_group
     
@@ -51,20 +43,12 @@ def clean_group_info(raw_group):
         return result
     return {"subgroup": group_str}
 
-def generate_mitigation_report(ranked_biases):
- 
-    filtered_biases = []
-    for item in ranked_biases:
-        score = item.get("fitness_score", 0.0)
-        if score >= REPORT_THRESHOLD:
-            filtered_biases.append(item)
 
-    total_filtered = len(filtered_biases)
-    if total_filtered == 0:
-        return [], []
+def generate_mitigation_report(ranked_biases):
+    total_filtered = len(ranked_biases)
 
     grouped_data = {}
-    for item in filtered_biases:
+    for item in ranked_biases:
         key = (item["transformation_name"], item["script_name"])
         if key not in grouped_data:
             grouped_data[key] = []
@@ -86,29 +70,6 @@ def generate_mitigation_report(ranked_biases):
                 seen_groups.add(group_key)
                 affected_groups.append(cleaned_group)
         
-        if max_score >= 1.5:
-            severity = "Critical"
-        elif max_score >= 1.0:
-            severity = "High"
-        elif max_score >= 0.5:
-            severity = "Moderate"
-        else:
-            severity = "Low"
-
-        if total_filtered <= 0:
-             frequency = "Isolated"
-        
-        share = count / total_filtered
-        
-        if count >= SYSTEMIC_MIN_COUNT or share >= SYSTEMIC_MIN_SHARE:
-            frequency = "Systemic"
-        elif count >= RECURRING_MIN_COUNT:
-            frequency = "Recurring"
-        else:
-            frequency = "Isolated"
-
-        priority = PRIORITY_MATRIX.get(severity, {}).get(frequency, "Low")
-
         category = classify_category(trans_name)
         if category == "generic_fallback":
             first_group = affected_groups[0] if affected_groups else "affected subgroups"
@@ -130,19 +91,15 @@ def generate_mitigation_report(ranked_biases):
             "max_score": round(max_score, 4),
             "avg_score": round(avg_score, 4),
             "occurrence_count": count,
-            "severity_tier": severity,
-            "frequency_tier": frequency,
-            "priority_label": priority,
             "affected_groups": affected_groups,
             "recommended_actions": actions,
             "references": references
         })
 
-    def sort_by_priority(item):
-        rank_weight = PRIORITY_ORDER.get(item["priority_label"], 0)
-        return (rank_weight)
+    def sort_by_max_bias(item):
+        return item["max_score"]
 
-    recommendations.sort(key=sort_by_priority, reverse=True)
+    recommendations.sort(key=sort_by_max_bias, reverse=True)
 
     script_summary = {}
     for rec in recommendations:
@@ -155,47 +112,39 @@ def generate_mitigation_report(ranked_biases):
     for s_name, rec_list in script_summary.items():
         total_count = sum(r["occurrence_count"] for r in rec_list)
         highest_score = max(r["max_score"] for r in rec_list)
-        
-        top_priority = "Low"
-        top_weight = 0
-        for r in rec_list:
-            w = PRIORITY_ORDER.get(r["priority_label"], 0)
-            if w > top_weight:
-                top_weight = w
-                top_priority = r["priority_label"]
 
         script_rollups.append({
             "script_name": s_name,
-            "highest_priority": top_priority,
             "total_occurrences": total_count,
             "max_score": highest_score
         })
 
-    script_rollups.sort(key=lambda s: (PRIORITY_ORDER.get(s["highest_priority"], 0), s["max_score"]), reverse=True)
-    print_mitigation_report(recommendations, script_rollups)
+    def sort_by_script_score(script_item):
+        return script_item["max_score"]
+
+    script_rollups.sort(key=sort_by_script_score, reverse=True)
     
+    print_mitigation_report(recommendations, script_rollups)
+    return recommendations, script_rollups
+
 
 def print_mitigation_report(recommendations, script_rollups):
     """Prints a clear, formatted mitigation report to the console."""
     print("\n" + "=" * 84)
     print("PROBA - AUDIT MITIGATION & FEEDBACK RECOMMENDATION REPORT")
-    print("Deterministic Expert System (Citation-Backed Academic Knowledge Base)")
     print("=" * 84)
-    print(f"[*] Threshold Filter : >= {REPORT_THRESHOLD:.2f}")
-    print(f"[*] Qualifying Steps : {len(recommendations)} function(s) flagged across {len(script_rollups)} script(s)")
-    print("-" * 84)
 
     if not recommendations:
         print("No bias findings exceeded the reporting threshold. Pipeline is within acceptable bounds.")
         print("=" * 84 + "\n")
         return
+
     for idx, rec in enumerate(recommendations, 1):
-        print(f"\n[{idx}] PRIORITY: {rec['priority_label'].upper()}")
-        print(f"    Transformation : {rec['transformation_name']}")
+        print(f"\n[{idx}] TRANSFORMATION: {rec['transformation_name']}")
         print(f"    Script File    : {rec['script_name']}")
         print(f"    Category       : {rec['category'].capitalize()}")
         print(f"    Metrics        : Max Bias: {rec['max_score']:.4f} | Avg Bias: {rec['avg_score']:.4f} | Count: {rec['occurrence_count']}")
-        print(f"    Classification : Severity: {rec['severity_tier']} | Frequency: {rec['frequency_tier']}")
+      
         
         print(f"    Affected Subgroups ({len(rec['affected_groups'])}):")
         for g_idx, grp in enumerate(rec['affected_groups'][:4], 1):
@@ -225,8 +174,8 @@ def print_mitigation_report(recommendations, script_rollups):
     print("\n" + "=" * 84)
     print("PIPELINE SCRIPT ROOT-CAUSE SUMMARY (OVERALL ROLLUP)")
     print("=" * 84)
-    print(f"{'Script File':<38} | {'Highest Priority':<18} | {'Occurrences':<12} | {'Max Bias':<10}")
+    print(f"{'Script File':<42} | {'Total Occurrences':<20} | {'Max Bias Score':<15}")
     print("-" * 84)
     for s in script_rollups:
-        print(f"{s['script_name']:<38} | {s['highest_priority']:<18} | {s['total_occurrences']:<12} | {s['max_score']:<10.4f}")
+        print(f"{s['script_name']:<42} | {s['total_occurrences']:<20} | {s['max_score']:<15.4f}")
     print("=" * 84 + "\n")
