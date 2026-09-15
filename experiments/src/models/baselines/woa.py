@@ -8,7 +8,7 @@ all_biases = []
 correct = 0
 class WOAAuditor:
     
-    def __init__(self, metadata_logs=None, num_whales=3, max_iter=5):
+    def __init__(self, metadata_logs=None, num_whales=30, max_iter=15):
         """
         Initializes the WOA Auditor with a 3D search space.
         :param metadata_logs: Optional list of dictionaries representing the JSONB logs.
