@@ -3,7 +3,6 @@
 export default function Results() {
   return (
     <div className="flex flex-col h-full justify-between gap-6 max-w-7xl mx-auto w-full">
-      {/* Audit Results Card */}
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex-1 flex flex-col justify-between overflow-hidden">
         <div className="py-5 px-8 border-b border-slate-200">
           <h1 className="text-2xl font-black tracking-tight text-[#0F1B2B]">
@@ -16,7 +15,6 @@ export default function Results() {
         </div>
       </div>
 
-      {/* Bottom Status Bar */}
       <BottomBar />
     </div>
   );

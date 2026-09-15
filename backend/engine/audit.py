@@ -1,13 +1,12 @@
-from woa import WOAAuditor, all_biases
+from hybrid_woa import WOAAuditor, all_biases
 from feedback import generate_mitigation_report, print_mitigation_report
 
-REPORT_THRESHOLD = 0.2  
 
 def get_fitness_score(bias_item):
     """Helper function: extracts the fitness score to help sort the list."""
     return bias_item["fitness_score"]
 
-def run_audit():
+def run_audit(threshold= 0.2):
     
     auditor = WOAAuditor()
     auditor.run_woa()
@@ -24,7 +23,7 @@ def run_audit():
     for rank_num, bias in enumerate(ranked_biases, 1):
         bias["rank"] = rank_num
         score = bias.get("fitness_score", 0.0)
-        if score > REPORT_THRESHOLD:
+        if score > threshold:
             filtered_biases.append(bias)
 
     print("\n--- RANKED AUDIT REPORT (HIGHEST TO LOWEST BIAS) ---")
@@ -38,7 +37,7 @@ def run_audit():
     return filtered_biases
 
 if __name__ == "__main__":
-    print("Running Whale Optimization Algorithm (WOA) audit...")    
+    print("Running Bias Audit...")    
     ranked_biases = run_audit()
     generate_mitigation_report(ranked_biases)
     

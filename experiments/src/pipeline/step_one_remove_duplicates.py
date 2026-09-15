@@ -66,7 +66,7 @@ def process_format_and_duplicates(df):
 
 if __name__ == '__main__':
     print("Starting Data Pipeline...")
-    raw_data_path = 'experiments/data/dirty_ACSIncome_2018_10K.csv'
+    raw_data_path = 'experiments/data/dirty_ACSIncome_2018_1M.csv'
     print(f"Loading raw data from {raw_data_path}...")
 
     df = pd.read_csv(raw_data_path)

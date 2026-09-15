@@ -2,9 +2,7 @@ import numpy as np
 import math
 import random
 import fitness
-#from audit import all_biases
 
-all_biases = []
 correct = 0
 class WOAAuditor:
     
@@ -162,14 +160,6 @@ class WOAAuditor:
                     new_pos = D_prime * math.exp(b * l) * math.cos(2 * math.pi * l) + self.best_position
                 whales_pos[i] = self.clip_position(new_pos)
 
-                # SAVED ALL RECORDS
-                dummy_fit, dummy_script, dummy_trans, dummy_demo = fitness.calculate_3d_fitness(whales_pos[i][0], whales_pos[i][1], whales_pos[i][2])
-                all_biases.append({
-                "fitness_score": dummy_fit,
-                "script_name": dummy_script,
-                "transformation_name": dummy_trans,
-                "demographic_group": dummy_demo
-                })
                 
         global correct
         traceability = correct / (n-1)
@@ -177,7 +167,6 @@ class WOAAuditor:
             self.best_position[0], self.best_position[1], self.best_position[2]
         )
         
-        # Collect the final status of the entire whale population
         whales_info = []
         for i in range(self.num_whales):
             w_pos = whales_pos[i]

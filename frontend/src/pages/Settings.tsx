@@ -9,17 +9,14 @@ interface SettingsState {
   dbPass: string;
   showPassword: boolean;
 
-  // WOA parameters
   searchingAgents: number;
   maxIterations: number;
 
-  // DE parameters
   populationSize: number;
   scaleFactor: number;
   crossoverRate: number;
   maxStagnationLimit: number;
 
-  // Bias threshold
   biasThreshold: number;
 }
 
@@ -46,7 +43,6 @@ export default function Settings() {
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Field updaters
   const updateField = <K extends keyof SettingsState>(field: K, value: SettingsState[K]) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
   };
@@ -62,7 +58,6 @@ export default function Settings() {
 
   return (
     <div className="flex flex-col h-full justify-between gap-6 max-w-7xl mx-auto w-full">
-      {/* Settings Container Card */}
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex-1 flex flex-col justify-between overflow-hidden">
         <div className="py-5 px-8 border-b border-slate-200 text-center">
           <h1 className="text-2xl font-black tracking-tight text-[#0F1B2B]">
@@ -73,7 +68,6 @@ export default function Settings() {
         <div className="p-8 flex-1 flex flex-col justify-between gap-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
             
-            {/* Database Credentials */}
             <div className="border border-slate-300/90 rounded-2xl p-6 bg-white flex flex-col justify-between shadow-xs">
               <div>
                 <h2 className="text-xs font-bold text-[#0F1B2B] tracking-wider pb-3 border-b border-slate-200 mb-5 uppercase">
@@ -141,10 +135,8 @@ export default function Settings() {
               </div>
             </div>
 
-            {/* Algorithm Parameters */}
             <div className="flex flex-col justify-between gap-5">
               
-              {/* WOA Configuration */}
               <div className="border border-slate-300/90 rounded-2xl p-5 bg-white shadow-xs">
                 <h2 className="text-xs font-bold text-[#0F1B2B] tracking-wider pb-3 border-b border-slate-200 mb-4 uppercase">
                   WHALE OPTIMIZATION ALGORITHM
@@ -185,7 +177,6 @@ export default function Settings() {
                 </div>
               </div>
 
-              {/* Differential Evolution Configuration */}
               <div className="border border-slate-300/90 rounded-2xl p-5 bg-white shadow-xs">
                 <h2 className="text-xs font-bold text-[#0F1B2B] tracking-wider pb-3 border-b border-slate-200 mb-4 uppercase">
                   DIFFERENTIAL EVOLUTION
@@ -262,8 +253,6 @@ export default function Settings() {
 
             </div>
           </div>
-
-          {/* Bias Threshold Slider */}
           <div className="border border-slate-300/90 rounded-2xl p-5 px-6 bg-white shadow-xs">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
               <h2 className="text-xs font-bold text-[#0F1B2B] tracking-wider uppercase">
@@ -296,8 +285,6 @@ export default function Settings() {
 
         </div>
       </div>
-
-      {/* Bottom Status Bar & Action Buttons */}
       <BottomBar>
         <div className="flex items-center gap-4">
           {saveSuccess && (

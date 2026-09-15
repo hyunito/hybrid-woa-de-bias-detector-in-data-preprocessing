@@ -80,7 +80,6 @@ export default function History() {
 
   return (
     <div className="flex flex-col h-full justify-between gap-6 max-w-7xl mx-auto w-full">
-      {/* Log History Card */}
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex-1 flex flex-col justify-between overflow-hidden">
         <div className="py-5 px-8 border-b border-slate-200">
           <h1 className="text-2xl font-black tracking-tight text-[#0F1B2B]">
@@ -89,7 +88,6 @@ export default function History() {
         </div>
 
         <div className="p-8 flex-1 flex flex-col justify-between gap-6">
-          {/* Search & Filter Toolbar */}
           <div className="flex items-center justify-between gap-4">
             <div className="relative w-80 md:w-96">
               <input
@@ -159,7 +157,6 @@ export default function History() {
             </div>
           </div>
 
-          {/* Audit Logs Table */}
           <div className="border border-slate-300/90 rounded-3xl p-6 bg-white flex-1 flex flex-col justify-start">
             <div className="grid grid-cols-12 gap-4 pb-4 border-b border-slate-300 text-xs font-bold text-slate-700 tracking-wider">
               <div className="col-span-3 pl-2 flex items-center gap-3">
@@ -176,7 +173,6 @@ export default function History() {
                 BIAS SCORE
               </div>
               <div className="col-span-1 text-right pr-2">
-                {/* Actions */}
               </div>
             </div>
 
@@ -191,7 +187,6 @@ export default function History() {
                     key={log.id}
                     className="grid grid-cols-12 gap-4 py-4 items-center text-xs text-slate-700 hover:bg-slate-50/70 transition-colors rounded-xl px-2"
                   >
-                    {/* Checkbox & Audit ID */}
                     <div className="col-span-3 flex items-center gap-3">
                       <input
                         type="checkbox"
@@ -204,22 +199,18 @@ export default function History() {
                       </span>
                     </div>
 
-                    {/* Timestamp */}
                     <div className="col-span-3 text-center font-medium text-slate-600">
                       {log.dateTime}
                     </div>
 
-                    {/* Injected / Detected Root Cause */}
                     <div className="col-span-3 text-center font-medium text-slate-700">
                       {log.rootCause}
                     </div>
 
-                    {/* Fitness / Bias Score */}
                     <div className="col-span-2 text-center font-bold text-slate-900">
                       {log.biasScore}
                     </div>
 
-                    {/* Download & Delete */}
                     <div className="col-span-1 flex items-center justify-end gap-3 text-slate-600 pr-2">
                       <button
                         type="button"
@@ -245,8 +236,6 @@ export default function History() {
           </div>
         </div>
       </div>
-
-      {/* Bottom Database Connection Status */}
       <BottomBar />
     </div>
   );

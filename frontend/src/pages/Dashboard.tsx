@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "../lib/utils";
 import BottomBar from "../components/BottomBar";
@@ -9,22 +9,61 @@ interface PipelineScript {
 }
 
 export default function Dashboard() {
-  // Dataset file state
   const [datasetFile, setDatasetFile] = useState<File | null>(null);
   const [isDraggingDataset, setIsDraggingDataset] = useState(false);
   const datasetInputRef = useRef<HTMLInputElement>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<{
+    total_columns: number;
+    columns: Array<{ id: string; name: string; type: string; is_binary: boolean }>;
+    binary_targets: Array<{ column: string; values: string[] }>;
+  } | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
 
-  // Preprocessing scripts state
-  const [scripts, setScripts] = useState<PipelineScript[]>([
-    { id: "1", name: "handle_missing_data.py" },
-    { id: "2", name: "remove_duplicates.py" },
-    { id: "3", name: "remove_outliers.py" },
-  ]);
+  const [scripts, setScripts] = useState<PipelineScript[]>(() => {
+    const saved = sessionStorage.getItem("pipeline_scripts");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  React.useEffect(() => {
+    sessionStorage.setItem("pipeline_scripts", JSON.stringify(scripts));
+  }, [scripts]);
+
   const [isDraggingScripts, setIsDraggingScripts] = useState(false);
   const scriptsInputRef = useRef<HTMLInputElement>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
-  // Dataset upload handlers
+  const uploadAndScanDataset = async (file: File) => {
+    setIsScanning(true);
+    setScanError(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/dataset/scan", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to scan dataset");
+      }
+
+      const data = await response.json();
+      console.log("[Dashboard] Scanned dataset successfully:", data);
+      setScanResult(data);
+
+      sessionStorage.setItem("scanned_dataset", JSON.stringify(data));
+    } catch (err: any) {
+      console.error("Scanning error:", err);
+      setScanError(err.message || "Could not connect to backend server. Make sure it is running on port 8000.");
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   const handleDatasetDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDraggingDataset(false);
@@ -32,6 +71,7 @@ export default function Dashboard() {
       const file = e.dataTransfer.files[0];
       if (file.name.endsWith(".csv")) {
         setDatasetFile(file);
+        uploadAndScanDataset(file);
       } else {
         alert("Please upload a valid .csv file.");
       }
@@ -40,11 +80,12 @@ export default function Dashboard() {
 
   const handleDatasetSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setDatasetFile(e.target.files[0]);
+      const file = e.target.files[0];
+      setDatasetFile(file);
+      uploadAndScanDataset(file);
     }
   };
 
-  // Python scripts upload handlers
   const handleScriptsDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDraggingScripts(false);
@@ -75,7 +116,6 @@ export default function Dashboard() {
     }
   };
 
-  // Drag-and-drop reordering
   const handleDragStart = (index: number) => {
     setDraggedIndex(index);
   };
@@ -103,10 +143,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col h-full justify-between gap-6 max-w-7xl mx-auto w-full">
-      {/* Dataset & Script Configuration Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 items-stretch">
-        
-        {/* Dataset Dropzone Card */}
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex flex-col justify-between overflow-hidden">
           <div className="py-5 px-6 border-b border-slate-200 text-center">
             <h2 className="text-2xl font-black tracking-tight text-[#0F1B2B]">
@@ -141,19 +178,49 @@ export default function Dashboard() {
               {datasetFile ? (
                 <div className="flex flex-col items-center gap-2">
                   <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600 text-2xl mb-1">
-                    <i className="bi bi-filetype-csv" />
+                    {isScanning ? (
+                      <i className="bi bi-arrow-repeat animate-spin text-blue-600" />
+                    ) : (
+                      <i className="bi bi-filetype-csv" />
+                    )}
                   </div>
                   <span className="font-bold text-base text-[#0F1B2B] break-all max-w-xs">
                     {datasetFile.name}
                   </span>
                   <span className="text-xs text-slate-500">
-                    {(datasetFile.size / 1024).toFixed(1)} KB • Ready for audit
+                    {(datasetFile.size / 1024).toFixed(1)} KB
                   </span>
+
+                  {isScanning && (
+                    <span className="text-xs font-semibold text-blue-600 animate-pulse mt-1">
+                      Scanning columns in memory...
+                    </span>
+                  )}
+
+                  {scanResult && !isScanning && (
+                    <div className="mt-1 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-1.5 text-xs text-emerald-800 font-medium flex items-center gap-1.5">
+                      <i className="bi bi-check-circle-fill text-emerald-600" />
+                      <span>
+                        <strong>{scanResult.total_columns}</strong> columns detected • <strong>{scanResult.binary_targets.length}</strong> binary targets
+                      </span>
+                    </div>
+                  )}
+
+                  {scanError && (
+                    <div className="mt-1 bg-red-50 border border-red-200 rounded-xl px-3 py-1.5 text-xs text-red-700 flex items-center gap-1.5 max-w-xs text-center">
+                      <i className="bi bi-exclamation-triangle-fill text-red-600 flex-shrink-0" />
+                      <span>{scanError}</span>
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       setDatasetFile(null);
+                      setScanResult(null);
+                      setScanError(null);
+                      sessionStorage.removeItem("scanned_dataset");
                     }}
                     className="mt-2 text-xs font-bold text-red-600 hover:underline"
                   >
@@ -183,8 +250,6 @@ export default function Dashboard() {
             </p>
           </div>
         </div>
-
-        {/* Preprocessing Scripts Card */}
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex flex-col justify-between overflow-hidden">
           <div className="py-5 px-6 border-b border-slate-200 text-center">
             <h2 className="text-2xl font-black tracking-tight text-[#0F1B2B]">
@@ -202,8 +267,6 @@ export default function Dashboard() {
                 multiple
                 className="hidden"
               />
-
-              {/* Upload Dropzone */}
               <div
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -245,50 +308,55 @@ export default function Dashboard() {
               </p>
             </div>
 
-            {/* Draggable Script List */}
             <div className="space-y-3 pt-1">
-              {scripts.map((script, index) => (
-                <div
-                  key={script.id}
-                  draggable
-                  onDragStart={() => handleDragStart(index)}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDragEnd={handleDragEnd}
-                  className={cn(
-                    "bg-[#ECEEF1] border border-slate-300/90 rounded-2xl py-3.5 px-5 flex items-center justify-between transition-all select-none shadow-xs group",
-                    draggedIndex === index
-                      ? "opacity-50 border-blue-500 bg-blue-50 scale-[0.98]"
-                      : "hover:bg-slate-200/80 cursor-grab active:cursor-grabbing"
-                  )}
-                >
-                  <div className="flex items-center gap-3.5">
-                    <div className="text-slate-600 group-hover:text-[#0F1B2B] flex items-center">
-                      <i className="bi bi-grid-3x2-gap-fill text-lg" />
-                    </div>
-                    <span className="text-sm font-bold text-[#0F1B2B]">
-                      {script.name}
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeScript(script.id);
-                    }}
-                    title="Remove script"
-                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 text-xs transition-opacity p-1"
-                  >
-                    <i className="bi bi-x-lg" />
-                  </button>
+              {scripts.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-2xl">
+                  No preprocessing scripts uploaded yet.
                 </div>
-              ))}
+              ) : (
+                scripts.map((script, index) => (
+                  <div
+                    key={script.id}
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDragEnd={handleDragEnd}
+                    className={cn(
+                      "bg-[#ECEEF1] border border-slate-300/90 rounded-2xl py-3.5 px-5 flex items-center justify-between transition-all select-none shadow-xs group",
+                      draggedIndex === index
+                        ? "opacity-50 border-blue-500 bg-blue-50 scale-[0.98]"
+                        : "hover:bg-slate-200/80 cursor-grab active:cursor-grabbing"
+                    )}
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className="text-slate-600 group-hover:text-[#0F1B2B] flex items-center">
+                        <i className="bi bi-grid-3x2-gap-fill text-lg" />
+                      </div>
+                      <span className="text-sm font-bold text-[#0F1B2B]">
+                        {script.name}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeScript(script.id);
+                      }}
+                      title="Remove script"
+                      className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 text-xs transition-opacity p-1"
+                    >
+                      <i className="bi bi-x-lg" />
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
+
           </div>
         </div>
       </div>
 
-      {/* Bottom Status & Navigation Bar */}
       <BottomBar>
         <NavLink
           to="/configuration"

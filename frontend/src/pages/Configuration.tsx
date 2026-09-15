@@ -9,62 +9,48 @@ interface ProtectedAttribute {
   type: "Categorical" | "Continuous";
 }
 
-const AVAILABLE_COLUMNS = [
-  "Race",
-  "Sex",
-  "Age",
-  "Marital Status",
-  "Workclass",
-  "Education",
-  "Occupation",
-  "Relationship",
-  "Place of Birth",
-];
+interface ScannedColumn {
+  id: string;
+  name: string;
+  type: "Categorical" | "Continuous";
+  is_binary: boolean;
+  unique_values?: string[];
+  sample_values?: string[];
+}
 
-const TARGET_COLUMNS = ["Income", "Credit Status", "Hired", "Approval", "Recidivism"];
-
-const OUTCOME_OPTIONS: Record<string, { favorable: string[]; unfavorable: string[] }> = {
-  Income: {
-    favorable: ["> 50,000", "> 50K", "1", "High Income"],
-    unfavorable: ["<= 50,000", "<= 50K", "0", "Low Income"],
-  },
-  "Credit Status": {
-    favorable: ["Good", "Approved", "1"],
-    unfavorable: ["Bad", "Denied", "0"],
-  },
-  Hired: {
-    favorable: ["Yes", "1", "Hired"],
-    unfavorable: ["No", "0", "Not Hired"],
-  },
-  Approval: {
-    favorable: ["Approved", "1"],
-    unfavorable: ["Denied", "0"],
-  },
-  Recidivism: {
-    favorable: ["No", "0", "Low Risk"],
-    unfavorable: ["Yes", "1", "High Risk"],
-  },
-};
+interface ScannedDataset {
+  filename: string;
+  total_columns: number;
+  columns: ScannedColumn[];
+  binary_targets: Array<{ column: string; values: string[] }>;
+}
 
 export default function Configuration() {
-  // Demographic attributes state
-  const [selectedAttributes, setSelectedAttributes] = useState<ProtectedAttribute[]>([
-    { id: "1", name: "Race", type: "Categorical" },
-    { id: "2", name: "Sex", type: "Categorical" },
-    { id: "3", name: "Age", type: "Continuous" },
-  ]);
+  
+  const [scannedData] = useState<ScannedDataset | null>(() => {
+    const saved = sessionStorage.getItem("scanned_dataset");
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const availableColumns = scannedData?.columns.map((c) => c.name) || [];
+  const binaryTargetColumns = scannedData?.binary_targets?.map((b) => b.column) || 
+    scannedData?.columns.filter((c) => c.is_binary).map((c) => c.name) || [];
+
+  const [selectedAttributes, setSelectedAttributes] = useState<ProtectedAttribute[]>([]);
   const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
 
-  // Binary target variable state
-  const [targetColumn, setTargetColumn] = useState("Income");
-  const [favorableOutcome, setFavorableOutcome] = useState("> 50,000");
-  const [unfavorableOutcome, setUnfavorableOutcome] = useState("<= 50,000");
+  const [targetColumn, setTargetColumn] = useState<string>("");
+  const [favorableOutcome, setFavorableOutcome] = useState<string>("");
+  const [unfavorableOutcome, setUnfavorableOutcome] = useState<string>("");
 
   const [isTargetDropdownOpen, setIsTargetDropdownOpen] = useState(false);
   const [isFavorableDropdownOpen, setIsFavorableDropdownOpen] = useState(false);
   const [isUnfavorableDropdownOpen, setIsUnfavorableDropdownOpen] = useState(false);
 
-  // Attribute management
+  const selectedBinary = scannedData?.binary_targets?.find((b) => b.column === targetColumn);
+  const targetOutcomes = selectedBinary?.values || 
+    scannedData?.columns.find((c) => c.name === targetColumn)?.unique_values || [];
+
   const addAttribute = (colName: string) => {
     if (!selectedAttributes.some((a) => a.name === colName)) {
       setSelectedAttributes((prev) => [
@@ -72,7 +58,7 @@ export default function Configuration() {
         {
           id: `${Date.now()}-${colName}`,
           name: colName,
-          type: colName === "Age" ? "Continuous" : "Categorical",
+          type: "Categorical",
         },
       ]);
     }
@@ -89,24 +75,32 @@ export default function Configuration() {
     );
   };
 
-  // Target variable selection
   const handleTargetChange = (newTarget: string) => {
     setTargetColumn(newTarget);
-    const options = OUTCOME_OPTIONS[newTarget] || {
-      favorable: ["1", "Yes", "Positive"],
-      unfavorable: ["0", "No", "Negative"],
-    };
-    setFavorableOutcome(options.favorable[0]);
-    setUnfavorableOutcome(options.unfavorable[0]);
+    setFavorableOutcome("");
+    setUnfavorableOutcome("");
     setIsTargetDropdownOpen(false);
+  };
+
+  const handleProceed = () => {
+    const config = {
+      protected_attributes: selectedAttributes.map((a) => ({
+        name: a.name,
+        type: a.type,
+      })),
+      target_variable: {
+        name: targetColumn,
+        positive: favorableOutcome,
+        negative: unfavorableOutcome,
+      },
+    };
+    sessionStorage.setItem("audit_config", JSON.stringify(config));
   };
 
   return (
     <div className="flex flex-col h-full justify-between gap-6 max-w-7xl mx-auto w-full">
-      {/* Protected Attributes & Target Variable Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 items-stretch">
         
-        {/* Protected Demographic Attributes Card */}
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex flex-col justify-between overflow-hidden">
           <div className="py-5 px-6 border-b border-slate-200 text-center">
             <h2 className="text-2xl font-black tracking-tight text-[#0F1B2B] leading-snug">
@@ -116,7 +110,6 @@ export default function Configuration() {
 
           <div className="p-8 flex-1 flex flex-col justify-between gap-6">
             <div className="space-y-5">
-              {/* Column Selection Dropdown */}
               <div className="relative">
                 <button
                   type="button"
@@ -129,31 +122,36 @@ export default function Configuration() {
 
                 {isColumnDropdownOpen && (
                   <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-300 rounded-2xl shadow-xl z-30 py-2 max-h-56 overflow-y-auto">
-                    {AVAILABLE_COLUMNS.map((col) => {
-                      const isAlreadySelected = selectedAttributes.some((a) => a.name === col);
-                      return (
-                        <button
-                          key={col}
-                          type="button"
-                          disabled={isAlreadySelected}
-                          onClick={() => addAttribute(col)}
-                          className={cn(
-                            "w-full text-left px-5 py-2.5 text-sm flex items-center justify-between transition-colors",
-                            isAlreadySelected
-                              ? "text-slate-400 bg-slate-50 cursor-not-allowed"
-                              : "text-[#0F1B2B] hover:bg-blue-50/70 font-semibold cursor-pointer"
-                          )}
-                        >
-                          <span>{col}</span>
-                          {isAlreadySelected && <span className="text-xs text-slate-400 font-normal">Added</span>}
-                        </button>
-                      );
-                    })}
+                    {availableColumns.length === 0 ? (
+                      <div className="px-5 py-3 text-xs text-slate-400">
+                        No columns found. Please upload a dataset in the Dashboard first.
+                      </div>
+                    ) : (
+                      availableColumns.map((col) => {
+                        const isAlreadySelected = selectedAttributes.some((a) => a.name === col);
+                        return (
+                          <button
+                            key={col}
+                            type="button"
+                            disabled={isAlreadySelected}
+                            onClick={() => addAttribute(col)}
+                            className={cn(
+                              "w-full text-left px-5 py-2.5 text-sm flex items-center justify-between transition-colors",
+                              isAlreadySelected
+                                ? "text-slate-400 bg-slate-50 cursor-not-allowed"
+                                : "text-[#0F1B2B] hover:bg-blue-50/70 font-semibold cursor-pointer"
+                            )}
+                          >
+                            <span>{col}</span>
+                            {isAlreadySelected && <span className="text-xs text-slate-400 font-normal">Added</span>}
+                          </button>
+                        );
+                      })
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* Selected Columns List */}
               <div className="border border-slate-300/90 rounded-2xl p-5 bg-[#F8FAFC]/60">
                 <span className="text-sm font-bold text-[#0F1B2B] text-center mb-4 block">
                   Column/s Selected
@@ -162,7 +160,7 @@ export default function Configuration() {
                 <div className="space-y-3">
                   {selectedAttributes.length === 0 ? (
                     <div className="py-6 text-center text-xs text-slate-400 font-medium">
-                      No demographic attributes selected yet.
+                      No demographic attributes selected yet. Select from above.
                     </div>
                   ) : (
                     selectedAttributes.map((attr) => (
@@ -184,7 +182,6 @@ export default function Configuration() {
                           </span>
                         </div>
 
-                        {/* Type Toggle */}
                         <div className="bg-slate-100 rounded-xl p-1 flex items-center border border-slate-200">
                           <button
                             type="button"
@@ -227,7 +224,6 @@ export default function Configuration() {
           </div>
         </div>
 
-        {/* Binary Target Variable Card */}
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex flex-col justify-between overflow-hidden">
           <div className="py-5 px-6 border-b border-slate-200 text-center">
             <h2 className="text-2xl font-black tracking-tight text-[#0F1B2B] leading-snug">
@@ -237,8 +233,7 @@ export default function Configuration() {
 
           <div className="p-8 flex-1 flex flex-col justify-between gap-6">
             <div className="space-y-6">
-              
-              {/* Target Column Selector */}
+
               <div>
                 <label className="text-xs font-bold text-[#0F1B2B] mb-2 block">
                   Select binary target column from the dataset
@@ -253,31 +248,36 @@ export default function Configuration() {
                     }}
                     className="w-full border border-slate-400/90 rounded-2xl py-3 px-5 flex items-center justify-between text-sm font-semibold text-[#0F1B2B] bg-white hover:border-slate-600 transition-colors cursor-pointer text-left"
                   >
-                    <span>{targetColumn}</span>
+                    <span>{targetColumn || "Select target column from dataset"}</span>
                     <i className={cn("bi bi-chevron-down text-xs text-slate-500 transition-transform", isTargetDropdownOpen && "rotate-180")} />
                   </button>
 
                   {isTargetDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-300 rounded-2xl shadow-xl z-30 py-2">
-                      {TARGET_COLUMNS.map((col) => (
-                        <button
-                          key={col}
-                          type="button"
-                          onClick={() => handleTargetChange(col)}
-                          className={cn(
-                            "w-full text-left px-5 py-2.5 text-sm font-semibold hover:bg-blue-50/70 transition-colors",
-                            targetColumn === col ? "text-blue-600 bg-blue-50/50" : "text-[#0F1B2B]"
-                          )}
-                        >
-                          {col}
-                        </button>
-                      ))}
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-300 rounded-2xl shadow-xl z-30 py-2 max-h-56 overflow-y-auto">
+                      {binaryTargetColumns.length === 0 ? (
+                        <div className="px-5 py-3 text-xs text-slate-400">
+                          No binary columns (2 unique values) detected in this dataset.
+                        </div>
+                      ) : (
+                        binaryTargetColumns.map((col) => (
+                          <button
+                            key={col}
+                            type="button"
+                            onClick={() => handleTargetChange(col)}
+                            className={cn(
+                              "w-full text-left px-5 py-2.5 text-sm font-semibold hover:bg-blue-50/70 transition-colors",
+                              targetColumn === col ? "text-blue-600 bg-blue-50/50" : "text-[#0F1B2B]"
+                            )}
+                          >
+                            {col}
+                          </button>
+                        ))
+                      )}
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Favorable Outcome Selector */}
               <div>
                 <label className="text-xs font-bold text-[#0F1B2B] mb-2 block">
                   Select favorable outcome value
@@ -285,41 +285,52 @@ export default function Configuration() {
                 <div className="relative">
                   <button
                     type="button"
+                    disabled={!targetColumn}
                     onClick={() => {
                       setIsFavorableDropdownOpen((p) => !p);
                       setIsTargetDropdownOpen(false);
                       setIsUnfavorableDropdownOpen(false);
                     }}
-                    className="w-full border border-slate-400/90 rounded-2xl py-3 px-5 flex items-center justify-between text-sm font-semibold text-[#0F1B2B] bg-white hover:border-slate-600 transition-colors cursor-pointer text-left"
+                    className={cn(
+                      "w-full border border-slate-400/90 rounded-2xl py-3 px-5 flex items-center justify-between text-sm font-semibold bg-white transition-colors text-left",
+                      !targetColumn
+                        ? "opacity-50 cursor-not-allowed bg-slate-50"
+                        : "text-[#0F1B2B] hover:border-slate-600 cursor-pointer"
+                    )}
                   >
-                    <span>{favorableOutcome}</span>
+                    <span>{favorableOutcome || (targetColumn ? "Select favorable outcome value" : "Select a target column first")}</span>
                     <i className={cn("bi bi-chevron-down text-xs text-slate-500 transition-transform", isFavorableDropdownOpen && "rotate-180")} />
                   </button>
 
                   {isFavorableDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-300 rounded-2xl shadow-xl z-30 py-2">
-                      {(OUTCOME_OPTIONS[targetColumn]?.favorable || ["> 50,000", "1", "Approved"]).map((val) => (
-                        <button
-                          key={val}
-                          type="button"
-                          onClick={() => {
-                            setFavorableOutcome(val);
-                            setIsFavorableDropdownOpen(false);
-                          }}
-                          className={cn(
-                            "w-full text-left px-5 py-2.5 text-sm font-semibold hover:bg-blue-50/70 transition-colors",
-                            favorableOutcome === val ? "text-blue-600 bg-blue-50/50" : "text-[#0F1B2B]"
-                          )}
-                        >
-                          {val}
-                        </button>
-                      ))}
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-300 rounded-2xl shadow-xl z-30 py-2 max-h-56 overflow-y-auto">
+                      {targetOutcomes.length === 0 ? (
+                        <div className="px-5 py-3 text-xs text-slate-400">
+                          No outcome values found for {targetColumn}.
+                        </div>
+                      ) : (
+                        targetOutcomes.map((val) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => {
+                              setFavorableOutcome(val);
+                              setIsFavorableDropdownOpen(false);
+                            }}
+                            className={cn(
+                              "w-full text-left px-5 py-2.5 text-sm font-semibold hover:bg-blue-50/70 transition-colors",
+                              favorableOutcome === val ? "text-blue-600 bg-blue-50/50" : "text-[#0F1B2B]"
+                            )}
+                          >
+                            {val}
+                          </button>
+                        ))
+                      )}
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Unfavorable Outcome Selector */}
               <div>
                 <label className="text-xs font-bold text-[#0F1B2B] mb-2 block">
                   Select unfavorable outcome value
@@ -327,35 +338,47 @@ export default function Configuration() {
                 <div className="relative">
                   <button
                     type="button"
+                    disabled={!targetColumn}
                     onClick={() => {
                       setIsUnfavorableDropdownOpen((p) => !p);
                       setIsTargetDropdownOpen(false);
                       setIsFavorableDropdownOpen(false);
                     }}
-                    className="w-full border border-slate-400/90 rounded-2xl py-3 px-5 flex items-center justify-between text-sm font-semibold text-[#0F1B2B] bg-white hover:border-slate-600 transition-colors cursor-pointer text-left"
+                    className={cn(
+                      "w-full border border-slate-400/90 rounded-2xl py-3 px-5 flex items-center justify-between text-sm font-semibold bg-white transition-colors text-left",
+                      !targetColumn
+                        ? "opacity-50 cursor-not-allowed bg-slate-50"
+                        : "text-[#0F1B2B] hover:border-slate-600 cursor-pointer"
+                    )}
                   >
-                    <span>{unfavorableOutcome}</span>
+                    <span>{unfavorableOutcome || (targetColumn ? "Select unfavorable outcome value" : "Select a target column first")}</span>
                     <i className={cn("bi bi-chevron-down text-xs text-slate-500 transition-transform", isUnfavorableDropdownOpen && "rotate-180")} />
                   </button>
 
                   {isUnfavorableDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-300 rounded-2xl shadow-xl z-30 py-2">
-                      {(OUTCOME_OPTIONS[targetColumn]?.unfavorable || ["<= 50,000", "0", "Denied"]).map((val) => (
-                        <button
-                          key={val}
-                          type="button"
-                          onClick={() => {
-                            setUnfavorableOutcome(val);
-                            setIsUnfavorableDropdownOpen(false);
-                          }}
-                          className={cn(
-                            "w-full text-left px-5 py-2.5 text-sm font-semibold hover:bg-blue-50/70 transition-colors",
-                            unfavorableOutcome === val ? "text-blue-600 bg-blue-50/50" : "text-[#0F1B2B]"
-                          )}
-                        >
-                          {val}
-                        </button>
-                      ))}
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-300 rounded-2xl shadow-xl z-30 py-2 max-h-56 overflow-y-auto">
+                      {targetOutcomes.length === 0 ? (
+                        <div className="px-5 py-3 text-xs text-slate-400">
+                          No outcome values found for {targetColumn}.
+                        </div>
+                      ) : (
+                        targetOutcomes.map((val) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => {
+                              setUnfavorableOutcome(val);
+                              setIsUnfavorableDropdownOpen(false);
+                            }}
+                            className={cn(
+                              "w-full text-left px-5 py-2.5 text-sm font-semibold hover:bg-blue-50/70 transition-colors",
+                              unfavorableOutcome === val ? "text-blue-600 bg-blue-50/50" : "text-[#0F1B2B]"
+                            )}
+                          >
+                            {val}
+                          </button>
+                        ))
+                      )}
                     </div>
                   )}
                 </div>
@@ -374,10 +397,10 @@ export default function Configuration() {
 
       </div>
 
-      {/* Bottom Status & Navigation Bar */}
       <BottomBar>
         <NavLink
           to="/processing"
+          onClick={handleProceed}
           className="flex items-center gap-2 text-sm font-bold text-[#0F1B2B] hover:text-blue-700 transition-colors group"
         >
           <span>Process</span>

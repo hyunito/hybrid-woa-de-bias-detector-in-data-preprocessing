@@ -172,7 +172,6 @@ class DEAuditor:
             self.best_position[0], self.best_position[1], self.best_position[2]
         )
 
-        # Collect the final status of the entire DE population
         pop_info = []
         for i in range(self.pop_size):
             ind_pos = pop[i]
