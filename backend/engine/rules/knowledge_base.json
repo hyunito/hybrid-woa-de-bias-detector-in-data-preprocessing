@@ -1,0 +1,109 @@
+{
+  "duplicates": {
+    "techniques": [
+      "Review the deduplication key/criteria for correlation with protected attributes before dropping records.",
+      "Apply deduplication within each demographic subgroup rather than against the full dataset, to avoid one group absorbing most of the drop."
+    ],
+    "references": [
+      {
+        "citation": "Wu, N., Vatsalan, D., Verma, S., & Kaafar, M.A. (2022). Fairness and Cost Constrained Privacy-Aware Record Linkage. IEEE Transactions on Information Forensics and Security, 17, 2644-2656.",
+        "url": "https://arxiv.org/abs/2206.15089"
+      },
+      {
+        "citation": "Barboi, C., Ouyang, F., Lembcke, L., Martin, A., Griffith, A., Allen, K.S., Li, X., Xu, H., & Grannis, S.J. (2026). Evaluation of the Accuracy of Probabilistic Record Linkage Across Sociodemographic Categories in 4 Databases: Exploratory Study. JMIR Formative Research, 10, e78622.",
+        "url": "https://formative.jmir.org/2026/1/e78622"
+      }
+    ]
+  },
+  "missing_data": {
+    "techniques": [
+      "Implement group-stratified imputation instead of a single global fill value.",
+      "Check whether the missingness rate itself differs by subgroup before choosing an imputation strategy - missingness that correlates with a protected attribute is itself a bias signal."
+    ],
+    "references": [
+      {
+        "citation": "Khan, F.A., Herasymuk, D., Protsiv, N., & Stoyanovich, J. (2024). Still More Shades of Null: An Evaluation Suite for Responsible Missing Value Imputation. Proceedings of the VLDB Endowment.",
+        "url": "https://arxiv.org/abs/2409.07510"
+      },
+      {
+        "citation": "Zhang, Y., & Long, Q. (2021). Fairness in Missing Data Imputation. Proceedings of the 38th International Conference on Machine Learning (PMLR 139).",
+        "url": "https://www.semanticscholar.org/paper/Fairness-in-Missing-Data-Imputation-Zhang-Long/6149efe0caaceedadb2e8aa1f64b090b3d64a64f"
+      },
+      {
+        "citation": "Schelter, S., He, Y., Khilnani, J., & Stoyanovich, J. (2019). FairPrep: Promoting Data to a First-Class Citizen in Studies on Fairness-Enhancing Interventions. ACM Conference on Fairness, Accountability, and Transparency.",
+        "url": "https://arxiv.org/abs/1911.12587"
+      }
+    ]
+  },
+  "outliers": {
+    "techniques": [
+      "Compute outlier bounds (z-score / IQR) per subgroup rather than one global threshold.",
+      "Sample and manually review a batch of records flagged as outliers from the affected subgroup before removal."
+    ],
+    "references": [
+      {
+        "citation": "Deepak, P. & Abraham, S.S. (2020/2021). FairLOF: Fairness in Outlier Detection. Data Science and Engineering.",
+        "url": "https://doi.org/10.1007/s41019-021-00169-x"
+      },
+      {
+        "citation": "Shekhar, S., Shah, N., & Akoglu, L. (2021). FairOD: Fairness-aware Outlier Detection.",
+        "url": "https://research.snap.com/publications/fairod-fairness-aware-outlier-detection.html"
+      }
+    ]
+  },
+  "encoding": {
+    "techniques": [
+      "Re-evaluate rare-category grouping/encoding choices - one-hot encoding has been shown to carry more direct group discrimination than regularized target encoding in some settings, while raw target encoding can leak label information.",
+      "Watch for intersectional cardinality effects: combining protected attributes into one high-cardinality feature can worsen discrimination even when each attribute alone looked fine."
+    ],
+    "references": [
+      {
+        "citation": "Mougan, C., Alvarez, J.M., Ruggieri, S., & Staab, S. (2022). Fairness Implications of Encoding Protected Categorical Attributes.",
+        "url": "https://arxiv.org/abs/2201.11358"
+      }
+    ]
+  },
+  "resampling": {
+    "techniques": [
+      "Verify the balancing target (e.g., SMOTE) includes the intersectional subgroup, not just the primary class label - balancing on outcome alone can leave a demographic subgroup still underrepresented.",
+      "Compare subgroup-level fairness metrics (not just accuracy) before and after resampling - oversampling improves class balance but does not automatically improve fairness metrics like average odds difference."
+    ],
+    "references": [
+      {
+        "citation": "Kabir, M.A., Ahmed, M.U., Begum, S., Barua, S., & Islam, M.R. (2024). Balancing Fairness: Unveiling the Potential of SMOTE-Driven Oversampling in AI Model Enhancement.",
+        "url": "https://dl.acm.org/doi/fullHtml/10.1145/3674029.3674034"
+      },
+      {
+        "citation": "Dablain, D., Krawczyk, B., & Chawla, N.V. (2022). Towards A Holistic View of Bias in Machine Learning: Bridging Algorithmic Fairness and Imbalanced Learning.",
+        "url": "https://arxiv.org/abs/2207.06084"
+      }
+    ]
+  },
+  "scaling": {
+    "techniques": [
+      "Use per-group normalization or robust scaling if subgroup value distributions differ substantially from the global distribution."
+    ],
+    "references": [
+      {
+        "citation": "Feldman, M., Friedler, S.A., Moeller, J., Scheidegger, C., & Venkatasubramanian, S. (2015). Certifying and Removing Disparate Impact. ACM SIGKDD.",
+        "url": "https://arxiv.org/abs/1412.3756"
+      }
+    ]
+  },
+  "general": {
+    "techniques": [
+      "Consider reweighing records so each demographic combination contributes proportionally to model training, without deleting or relabeling any data.",
+      "Consider a fair representation learning step upstream, which encodes the data while obscuring protected-attribute membership."
+    ],
+    "references": [
+      {
+        "citation": "Kamiran, F. & Calders, T. (2012). Data preprocessing techniques for classification without discrimination. Knowledge and Information Systems, 33(1), 1-33.",
+        "url": "https://doi.org/10.1007/s10115-011-0463-8"
+      },
+      {
+        "citation": "Zemel, R., Wu, Y., Swersky, K., Pitassi, T., & Dwork, C. (2013). Learning Fair Representations. ICML.",
+        "url": "https://proceedings.mlr.press/v28/zemel13.html"
+      }
+    ]
+  }
+}

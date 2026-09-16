@@ -1,0 +1,50 @@
+[
+  {
+    "category": "duplicates",
+    "keywords": [
+      "duplicat"
+    ]
+  },
+  {
+    "category": "missing_data",
+    "keywords": [
+      "missing",
+      "null",
+      "nan",
+      "impute"
+    ]
+  },
+  {
+    "category": "outliers",
+    "keywords": [
+      "outlier"
+    ]
+  },
+  {
+    "category": "encoding",
+    "keywords": [
+      "rare class",
+      "cardinal",
+      "categor",
+      "encod"
+    ]
+  },
+  {
+    "category": "resampling",
+    "keywords": [
+      "resample",
+      "smote",
+      "balance",
+      "oversampl",
+      "undersampl"
+    ]
+  },
+  {
+    "category": "scaling",
+    "keywords": [
+      "scal",
+      "normal",
+      "standardiz"
+    ]
+  }
+]
