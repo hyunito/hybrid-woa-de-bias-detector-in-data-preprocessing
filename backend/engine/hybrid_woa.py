@@ -150,7 +150,7 @@ class WOAAuditor:
                     b = 1 
                     new_pos = D_prime * math.exp(b * l) * math.cos(2 * math.pi * l) + self.best_position
                 whales_pos[i] = self.clip_position(new_pos)
-
+                #print(f"Whale: {whales_pos}")
                 # SAVED ALL RECORDS
                 dummy_fit, dummy_script, dummy_trans, dummy_demo = fitness.calculate_3d_fitness(whales_pos[i][0], whales_pos[i][1], whales_pos[i][2])
                 all_biases.append({
@@ -163,7 +163,7 @@ class WOAAuditor:
         best_fitness, best_script, best_trans, best_demo = fitness.calculate_3d_fitness(
             self.best_position[0], self.best_position[1], self.best_position[2]
         )
-        
+      
         # Collect the final status of the entire whale population
         whales_info = []
         for i in range(self.num_whales):

@@ -3,6 +3,8 @@ from numpy.random import rand
 from numpy.random import choice
 import random
 import fitness
+#from woa import all_biases
+all_biases = []
 
 class DEAuditor:
 
@@ -143,6 +145,17 @@ class DEAuditor:
                 trial = self.crossover(mutated, pop[j])
                 trial = self.clip_position(trial)
 
+                #print(f"trial: {trial}")
+                
+                # SAVED ALL RECORDS
+                dummy_fit, dummy_script, dummy_trans, dummy_demo = fitness.calculate_3d_fitness(trial[0], trial[1], trial[2])
+                all_biases.append({
+                "fitness_score": dummy_fit,
+                "script_name": dummy_script,
+                "transformation_name": dummy_trans,
+                "demographic_group": dummy_demo
+                })
+
                 obj_target = fitness_vals[j]
                 obj_trial = self.calculate_fitness(trial)
                 n += 1
@@ -162,6 +175,7 @@ class DEAuditor:
         best_fitness, best_script, best_trans, best_demo = fitness.calculate_3d_fitness(
             self.best_position[0], self.best_position[1], self.best_position[2]
         )
+        
 
         # Collect the final status of the entire DE population
         pop_info = []

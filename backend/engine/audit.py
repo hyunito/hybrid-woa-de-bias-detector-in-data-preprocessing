@@ -1,4 +1,5 @@
-from hybrid_woa import WOAAuditor, all_biases
+from hybrid_woa import WOAAuditor
+from hybrid_de import all_biases
 from feedback import generate_mitigation_report, print_mitigation_report
 
 
@@ -25,9 +26,10 @@ def run_audit(threshold= 0.2):
         score = bias.get("fitness_score", 0.0)
         if score > threshold:
             filtered_biases.append(bias)
-
+    print(f"ALL BIASES: {len(all_biases)}")
     print("\n--- RANKED AUDIT REPORT (HIGHEST TO LOWEST BIAS) ---")
-    for bias in filtered_biases:
+
+    for bias in filtered_biases[:10]:
         score = bias["fitness_score"]
         trans = bias["transformation_name"]
         script = bias["script_name"]

@@ -28,9 +28,15 @@ interface ScannedDataset {
 export default function Configuration() {
   
   const [scannedData] = useState<ScannedDataset | null>(() => {
-    const saved = sessionStorage.getItem("scanned_dataset");
-    return saved ? JSON.parse(saved) : null;
+  try {
+      const saved = sessionStorage.getItem("scanned_dataset");
+      return saved && saved !== "undefined" ? JSON.parse(saved) : null;
+    } catch (e) {
+      console.warn("Failed to parse scanned_dataset from sessionStorage, resetting:", e);
+      return null;
+    }
   });
+
 
   const availableColumns = scannedData?.columns.map((c) => c.name) || [];
   const binaryTargetColumns = scannedData?.binary_targets?.map((b) => b.column) || 
@@ -103,7 +109,7 @@ export default function Configuration() {
         
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex flex-col justify-between overflow-hidden">
           <div className="py-5 px-6 border-b border-slate-200 text-center">
-            <h2 className="text-2xl font-black tracking-tight text-[#0F1B2B] leading-snug">
+            <h2 className="text-2xl font-bold tracking-tight text-[#0F1B2B] leading-snug">
               Select and Configure Protected<br />Demographic Attributes
             </h2>
           </div>
@@ -226,7 +232,7 @@ export default function Configuration() {
 
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex flex-col justify-between overflow-hidden">
           <div className="py-5 px-6 border-b border-slate-200 text-center">
-            <h2 className="text-2xl font-black tracking-tight text-[#0F1B2B] leading-snug">
+            <h2 className="text-2xl font-bold tracking-tight text-[#0F1B2B] leading-snug">
               Define the Binary Target Variable and its<br />Outcome Values
             </h2>
           </div>

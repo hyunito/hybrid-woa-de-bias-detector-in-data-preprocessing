@@ -20,10 +20,16 @@ export default function Dashboard() {
   } | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
 
-  const [scripts, setScripts] = useState<PipelineScript[]>(() => {
-    const saved = sessionStorage.getItem("pipeline_scripts");
-    return saved ? JSON.parse(saved) : [];
+    const [scripts, setScripts] = useState<PipelineScript[]>(() => {
+    try {
+      const saved = sessionStorage.getItem("pipeline_scripts");
+      return saved && saved !== "undefined" ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.warn("Failed to parse pipeline_scripts from sessionStorage, resetting:", e);
+      return [];
+    }
   });
+
 
   React.useEffect(() => {
     sessionStorage.setItem("pipeline_scripts", JSON.stringify(scripts));
@@ -146,7 +152,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 items-stretch">
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex flex-col justify-between overflow-hidden">
           <div className="py-5 px-6 border-b border-slate-200 text-center">
-            <h2 className="text-2xl font-black tracking-tight text-[#0F1B2B]">
+            <h2 className="text-2xl font-bold tracking-tight text-[#0F1B2B]">
               Dataset
             </h2>
           </div>
@@ -252,7 +258,7 @@ export default function Dashboard() {
         </div>
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex flex-col justify-between overflow-hidden">
           <div className="py-5 px-6 border-b border-slate-200 text-center">
-            <h2 className="text-2xl font-black tracking-tight text-[#0F1B2B]">
+            <h2 className="text-2xl font-bold tracking-tight text-[#0F1B2B]">
               Data Pipeline Scripts
             </h2>
           </div>
