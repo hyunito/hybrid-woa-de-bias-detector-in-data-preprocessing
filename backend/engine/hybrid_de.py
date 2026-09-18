@@ -1,10 +1,9 @@
+all_biases = []
 import numpy as np
 from numpy.random import rand
 from numpy.random import choice
 import random
 import fitness
-#from woa import all_biases
-all_biases = []
 
 class DEAuditor:
 
@@ -93,11 +92,13 @@ class DEAuditor:
 
         return score
 
-    def run_de(self, seed_position=None, seed_jitter=6.0):
+    def run_de(self, seed_position=None, seed_jitter=6.0, all_biases=None, callback=None):
         """
         Executes the main DE optimization loop over the 3D search space.
         """
 
+        if all_biases is None:
+            all_biases = []
         pop = []
 
         if seed_position is not None:
@@ -150,11 +151,25 @@ class DEAuditor:
                 # SAVED ALL RECORDS
                 dummy_fit, dummy_script, dummy_trans, dummy_demo = fitness.calculate_3d_fitness(trial[0], trial[1], trial[2])
                 all_biases.append({
-                "fitness_score": dummy_fit,
-                "script_name": dummy_script,
-                "transformation_name": dummy_trans,
-                "demographic_group": dummy_demo
+                    "fitness_score": dummy_fit,
+                    "script_name": dummy_script,
+                    "transformation_name": dummy_trans,
+                    "demographic_group": dummy_demo,
+                    "source": "DE"
                 })
+                if callback:
+                    try:
+                        callback({
+                            "stage": "DE",
+                            "step": len(all_biases),
+                            "fitness_score": float(dummy_fit),
+                            "best_fitness": float(self.best_fitness),
+                            "script_name": dummy_script,
+                            "transformation_name": dummy_trans,
+                            "demographic_group": dummy_demo
+                        })
+                    except Exception:
+                        pass
 
                 obj_target = fitness_vals[j]
                 obj_trial = self.calculate_fitness(trial)
@@ -197,6 +212,7 @@ class DEAuditor:
             "transformation_name": best_trans,
             "demographic_group": best_demo,
             "individuals": pop_info,
+            "all_biases": all_biases,
         }
 
 if __name__ == "__main__":

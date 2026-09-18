@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "../lib/utils";
 import BottomBar from "../components/BottomBar";
@@ -17,10 +17,21 @@ export default function Dashboard() {
     total_columns: number;
     columns: Array<{ id: string; name: string; type: string; is_binary: boolean }>;
     binary_targets: Array<{ column: string; values: string[] }>;
+    saved_path?: string;
   } | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
 
-    const [scripts, setScripts] = useState<PipelineScript[]>(() => {
+  // Session ID for resource tracking and safe exit cleanup
+  const [sessionId] = useState<string>(() => {
+    let existing = sessionStorage.getItem("current_session_id");
+    if (!existing) {
+      existing = Math.random().toString(36).substring(2, 11);
+      sessionStorage.setItem("current_session_id", existing);
+    }
+    return existing;
+  });
+
+  const [scripts, setScripts] = useState<PipelineScript[]>(() => {
     try {
       const saved = sessionStorage.getItem("pipeline_scripts");
       return saved && saved !== "undefined" ? JSON.parse(saved) : [];
@@ -30,21 +41,24 @@ export default function Dashboard() {
     }
   });
 
-
-  React.useEffect(() => {
+  useEffect(() => {
     sessionStorage.setItem("pipeline_scripts", JSON.stringify(scripts));
   }, [scripts]);
 
   const [isDraggingScripts, setIsDraggingScripts] = useState(false);
   const scriptsInputRef = useRef<HTMLInputElement>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [isUploadingScripts, setIsUploadingScripts] = useState(false);
+  const [scriptUploadNotice, setScriptUploadNotice] = useState<string | null>(null);
 
+  // Upload and stream dataset to backend/dataset/ in chunks
   const uploadAndScanDataset = async (file: File) => {
     setIsScanning(true);
     setScanError(null);
 
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("session_id", sessionId);
 
     try {
       const response = await fetch("http://127.0.0.1:8000/api/dataset/scan", {
@@ -54,11 +68,11 @@ export default function Dashboard() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to scan dataset");
+        throw new Error(errorData.detail || "Failed to stream and scan dataset");
       }
 
       const data = await response.json();
-      console.log("[Dashboard] Scanned dataset successfully:", data);
+      console.log("[Dashboard] Streamed dataset to disk & scanned successfully:", data);
       setScanResult(data);
 
       sessionStorage.setItem("scanned_dataset", JSON.stringify(data));
@@ -67,6 +81,38 @@ export default function Dashboard() {
       setScanError(err.message || "Could not connect to backend server. Make sure it is running on port 8000.");
     } finally {
       setIsScanning(false);
+    }
+  };
+
+  // Upload preprocessing scripts to backend/pipeline/
+  const uploadScriptsToBackend = async (pyFiles: File[]) => {
+    if (pyFiles.length === 0) return;
+    setIsUploadingScripts(true);
+    setScriptUploadNotice(null);
+
+    const formData = new FormData();
+    pyFiles.forEach((f) => formData.append("files", f));
+    formData.append("session_id", sessionId);
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/pipeline/upload-scripts", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to upload scripts to backend");
+      }
+
+      const data = await response.json();
+      console.log("[Dashboard] Uploaded scripts successfully to backend/pipeline/:", data);
+      setScriptUploadNotice(`Saved ${data.uploaded_count} script(s) to pipeline engine.`);
+    } catch (err: any) {
+      console.error("Script upload error:", err);
+      setScriptUploadNotice(`Upload warning: ${err.message}`);
+    } finally {
+      setIsUploadingScripts(false);
     }
   };
 
@@ -96,14 +142,14 @@ export default function Dashboard() {
     e.preventDefault();
     setIsDraggingScripts(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const newFiles: PipelineScript[] = Array.from(e.dataTransfer.files)
-        .filter((f) => f.name.endsWith(".py"))
-        .map((f, i) => ({
+      const pyFiles = Array.from(e.dataTransfer.files).filter((f) => f.name.endsWith(".py"));
+      if (pyFiles.length > 0) {
+        const newScripts: PipelineScript[] = pyFiles.map((f, i) => ({
           id: `${Date.now()}-${i}`,
           name: f.name,
         }));
-      if (newFiles.length > 0) {
-        setScripts((prev) => [...prev, ...newFiles]);
+        setScripts((prev) => [...prev, ...newScripts]);
+        uploadScriptsToBackend(pyFiles);
       } else {
         alert("Please upload .py preprocessing script files.");
       }
@@ -112,13 +158,15 @@ export default function Dashboard() {
 
   const handleScriptsSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const newFiles: PipelineScript[] = Array.from(e.target.files)
-        .filter((f) => f.name.endsWith(".py"))
-        .map((f, i) => ({
+      const pyFiles = Array.from(e.target.files).filter((f) => f.name.endsWith(".py"));
+      if (pyFiles.length > 0) {
+        const newScripts: PipelineScript[] = pyFiles.map((f, i) => ({
           id: `${Date.now()}-${i}`,
           name: f.name,
         }));
-      setScripts((prev) => [...prev, ...newFiles]);
+        setScripts((prev) => [...prev, ...newScripts]);
+        uploadScriptsToBackend(pyFiles);
+      }
     }
   };
 
@@ -150,6 +198,7 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col h-full justify-between gap-6 max-w-7xl mx-auto w-full">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 items-stretch">
+        {/* Left: Dataset Upload */}
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex flex-col justify-between overflow-hidden">
           <div className="py-5 px-6 border-b border-slate-200 text-center">
             <h2 className="text-2xl font-bold tracking-tight text-[#0F1B2B]">
@@ -199,7 +248,7 @@ export default function Dashboard() {
 
                   {isScanning && (
                     <span className="text-xs font-semibold text-blue-600 animate-pulse mt-1">
-                      Scanning columns in memory...
+                      Streaming to disk and inspecting schema...
                     </span>
                   )}
 
@@ -207,7 +256,7 @@ export default function Dashboard() {
                     <div className="mt-1 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-1.5 text-xs text-emerald-800 font-medium flex items-center gap-1.5">
                       <i className="bi bi-check-circle-fill text-emerald-600" />
                       <span>
-                        <strong>{scanResult.total_columns}</strong> columns detected • <strong>{scanResult.binary_targets.length}</strong> binary targets
+                        <strong>{scanResult.total_columns}</strong> columns detected | <strong>{scanResult.binary_targets.length}</strong> binary targets
                       </span>
                     </div>
                   )}
@@ -252,10 +301,12 @@ export default function Dashboard() {
             </div>
 
             <p className="text-[11px] text-slate-500 text-center mt-6 leading-relaxed max-w-sm">
-              <span className="font-bold text-slate-700">Note:</span> Your .csv must contain demographic features (e.g., Race, Gender) and a binary target variable to enable bias auditing.
+              <span className="font-bold text-slate-700">Note:</span> Large datasets are streamed directly to local storage to prevent memory overflow. File must contain demographic features and a binary target.
             </p>
           </div>
         </div>
+
+        {/* Right: Pipeline Scripts Upload */}
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex flex-col justify-between overflow-hidden">
           <div className="py-5 px-6 border-b border-slate-200 text-center">
             <h2 className="text-2xl font-bold tracking-tight text-[#0F1B2B]">
@@ -305,8 +356,21 @@ export default function Dashboard() {
                 </span>
               </div>
 
+              {isUploadingScripts && (
+                <div className="mt-3 flex items-center justify-center gap-2 text-xs font-bold text-blue-600">
+                  <i className="bi bi-arrow-repeat animate-spin" />
+                  <span>Saving scripts to pipeline directory...</span>
+                </div>
+              )}
+
+              {scriptUploadNotice && !isUploadingScripts && (
+                <div className="mt-3 text-center text-xs font-medium text-slate-600">
+                  {scriptUploadNotice}
+                </div>
+              )}
+
               <p className="text-[11px] text-slate-600 font-medium leading-relaxed border-t border-slate-200 mt-5 pt-3">
-                <span className="font-bold text-slate-800">Note:</span> Drag scripts to set execution order. For the auditor to track provenance, you must put the{" "}
+                <span className="font-bold text-slate-800">Note:</span> Drag scripts to set execution order. Please ensure scripts are connected sequentially so the pipeline can execute from the first script. For the auditor to track provenance, you must put the{" "}
                 <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[10px] text-slate-800 border border-slate-300">
                   @tracker.track("[Function's Task]")
                 </code>{" "}
@@ -350,7 +414,7 @@ export default function Dashboard() {
                         removeScript(script.id);
                       }}
                       title="Remove script"
-                      className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 text-xs transition-opacity p-1"
+                      className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 text-xs transition-opacity p-1 cursor-pointer"
                     >
                       <i className="bi bi-x-lg" />
                     </button>
@@ -358,7 +422,6 @@ export default function Dashboard() {
                 ))
               )}
             </div>
-
           </div>
         </div>
       </div>
@@ -366,7 +429,7 @@ export default function Dashboard() {
       <BottomBar>
         <NavLink
           to="/configuration"
-          className="flex items-center gap-2 text-sm font-bold text-[#0F1B2B] hover:text-blue-700 transition-colors group"
+          className="flex items-center gap-2 text-sm font-bold text-[#0F1B2B] hover:text-blue-700 transition-colors group cursor-pointer"
         >
           <span>Proceed to Configuration</span>
           <i className="bi bi-arrow-right text-base group-hover:translate-x-1 transition-transform" />

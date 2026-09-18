@@ -1,4 +1,5 @@
-﻿import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import Configuration from "./pages/Configuration";
@@ -8,10 +9,24 @@ import History from "./pages/History";
 import Settings from "./pages/Settings";
 
 export default function App() {
+  useEffect(() => {
+    // When the user exits the session or closes the browser, trigger safe cleanup of uploaded datasets and scripts
+    const handleBeforeUnload = () => {
+      const sessionId = sessionStorage.getItem("current_session_id");
+      if (sessionId) {
+        navigator.sendBeacon(`http://127.0.0.1:8000/api/session/cleanup/${sessionId}`);
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
   return (
     <BrowserRouter>
       <div className="flex h-screen w-screen overflow-hidden bg-gradient-to-br from-[#122336] via-[#253D56] to-[#3C5774]">
-       
         <Sidebar />
 
         <main className="flex-1 overflow-y-auto p-6 lg:p-10 flex flex-col justify-between">

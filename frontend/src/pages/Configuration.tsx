@@ -1,5 +1,5 @@
 ﻿import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { cn } from "../lib/utils";
 import BottomBar from "../components/BottomBar";
 
@@ -26,7 +26,10 @@ interface ScannedDataset {
 }
 
 export default function Configuration() {
-  
+  const navigate = useNavigate();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const [scannedData] = useState<ScannedDataset | null>(() => {
   try {
       const saved = sessionStorage.getItem("scanned_dataset");
@@ -88,19 +91,81 @@ export default function Configuration() {
     setIsTargetDropdownOpen(false);
   };
 
-  const handleProceed = () => {
+  const handleProceed = async () => {
+    setErrorMessage(null);
+
+    // Validation checks
+    if (selectedAttributes.length === 0) {
+      setErrorMessage("Please select at least one protected demographic attribute.");
+      return;
+    }
+    if (!targetColumn) {
+      setErrorMessage("Please select a target variable column.");
+      return;
+    }
+    if (!favorableOutcome) {
+      setErrorMessage("Please select a favorable outcome value.");
+      return;
+    }
+    if (!unfavorableOutcome) {
+      setErrorMessage("Please select an unfavorable outcome value.");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    // Read arranged scripts from sessionStorage
+    let pipelineScripts = [];
+    try {
+      const savedScripts = sessionStorage.getItem("pipeline_scripts");
+      if (savedScripts) {
+        pipelineScripts = JSON.parse(savedScripts);
+      }
+    } catch (e) {
+      console.warn("Failed to parse pipeline_scripts:", e);
+    }
+
     const config = {
       protected_attributes: selectedAttributes.map((a) => ({
         name: a.name,
-        type: a.type,
+        type: a.type.toLowerCase(),
       })),
       target_variable: {
         name: targetColumn,
         positive: favorableOutcome,
         negative: unfavorableOutcome,
       },
+      pipeline_scripts: pipelineScripts,
     };
+
+    // Save configuration to sessionStorage
     sessionStorage.setItem("audit_config", JSON.stringify(config));
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/tracker/setup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(config),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to setup dynamic tracker on backend.");
+      }
+
+      const result = await response.json();
+      console.log("[Configuration] Dynamic tracker_setup.py generated:", result);
+
+      // Navigate to Processing Monitor
+      navigate("/processing");
+    } catch (err: any) {
+      console.error("Tracker setup error:", err);
+      setErrorMessage(err.message || "Could not connect to backend server.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -404,14 +469,37 @@ export default function Configuration() {
       </div>
 
       <BottomBar>
-        <NavLink
-          to="/processing"
-          onClick={handleProceed}
-          className="flex items-center gap-2 text-sm font-bold text-[#0F1B2B] hover:text-blue-700 transition-colors group"
-        >
-          <span>Process</span>
-          <i className="bi bi-arrow-right text-base group-hover:translate-x-1 transition-transform" />
-        </NavLink>
+        <div className="flex items-center gap-4">
+          {errorMessage && (
+            <div className="text-xs font-semibold text-rose-600 max-w-sm flex items-center gap-1.5 animate-fade-in">
+              <i className="bi bi-exclamation-circle-fill flex-shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+          <button
+            type="button"
+            disabled={isProcessing}
+            onClick={handleProceed}
+            className={cn(
+              "flex items-center gap-2 text-sm font-bold transition-all cursor-pointer",
+              isProcessing
+                ? "text-slate-400 cursor-not-allowed"
+                : "text-[#0F1B2B] hover:text-blue-700 group"
+            )}
+          >
+            {isProcessing ? (
+              <>
+                <i className="bi bi-arrow-repeat animate-spin text-base" />
+                <span>Configuring Tracker...</span>
+              </>
+            ) : (
+              <>
+                <span>Process</span>
+                <i className="bi bi-arrow-right text-base group-hover:translate-x-1 transition-transform" />
+              </>
+            )}
+          </button>
+        </div>
       </BottomBar>
     </div>
   );

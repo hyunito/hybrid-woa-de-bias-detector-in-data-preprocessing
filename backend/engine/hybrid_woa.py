@@ -1,9 +1,10 @@
+all_biases = []
 import numpy as np
 import math
 import random
 import fitness
 from hybrid_de import DEAuditor
-all_biases = []
+
 
 class WOAAuditor:
     
@@ -47,6 +48,7 @@ class WOAAuditor:
         self.dim = 3
         self.best_position = np.zeros(self.dim)
         self.best_fitness = float('-inf')
+        self.all_biases = []
 
     def clip_position(self, pos):
         """
@@ -81,12 +83,13 @@ class WOAAuditor:
         
         return score
 
-    def run_woa(self):
+    def run_woa(self, callback=None):
         """
         Executes the main WOA Scouting loop over the uneven 3D search space.
         """
         de_auditor = DEAuditor()
-
+        
+        self.all_biases = []
         whales_pos = []
         for _ in range(self.num_whales):
             s_val = random.randint(0, len(self.scripts) - 1)
@@ -110,6 +113,40 @@ class WOAAuditor:
         self.best_fitness = float('-inf')
         self.best_position = whales_pos[0].copy()
         
+        self.best_position = self.core_algo(whales_pos, callback=callback)
+                
+        best_fitness, best_script, best_trans, best_demo = fitness.calculate_3d_fitness(
+            self.best_position[0], self.best_position[1], self.best_position[2]
+        )
+      
+        # Collect the final status of the entire whale population
+        whales_info = []
+        for i in range(self.num_whales):
+            w_pos = whales_pos[i]
+            w_fit, w_script, w_trans, w_demo = fitness.calculate_3d_fitness(w_pos[0], w_pos[1], w_pos[2])
+            whales_info.append({
+                "whale_id": i + 1,
+                "position": w_pos.tolist(),
+                "fitness_score": w_fit,
+                "script_name": w_script,
+                "transformation_name": w_trans,
+                "demographic_group": w_demo
+            })
+        best_position_info = {
+            "best_position": self.best_position.tolist(),
+            "max_fitness_score": best_fitness,
+            "script_name": best_script,
+            "transformation_name": best_trans,
+            "demographic_group": best_demo,
+            "whales": whales_info,
+        }
+        global all_biases
+        result = de_auditor.run_de(seed_position=best_position_info["best_position"], all_biases=self.all_biases, callback=callback)
+        all_biases = self.all_biases
+        result["all_biases"] = self.all_biases
+        return result
+
+    def core_algo(self, whales_pos, callback=None):
         for t in range(self.max_iter):
            
             for i in range(self.num_whales):
@@ -153,40 +190,29 @@ class WOAAuditor:
                 #print(f"Whale: {whales_pos}")
                 # SAVED ALL RECORDS
                 dummy_fit, dummy_script, dummy_trans, dummy_demo = fitness.calculate_3d_fitness(whales_pos[i][0], whales_pos[i][1], whales_pos[i][2])
-                all_biases.append({
-                "fitness_score": dummy_fit,
-                "script_name": dummy_script,
-                "transformation_name": dummy_trans,
-                "demographic_group": dummy_demo
+                self.all_biases.append({
+                    "fitness_score": dummy_fit,
+                    "script_name": dummy_script,
+                    "transformation_name": dummy_trans,
+                    "demographic_group": dummy_demo,
+                    "source": "WOA"
                 })
-                
-        best_fitness, best_script, best_trans, best_demo = fitness.calculate_3d_fitness(
-            self.best_position[0], self.best_position[1], self.best_position[2]
-        )
-      
-        # Collect the final status of the entire whale population
-        whales_info = []
-        for i in range(self.num_whales):
-            w_pos = whales_pos[i]
-            w_fit, w_script, w_trans, w_demo = fitness.calculate_3d_fitness(w_pos[0], w_pos[1], w_pos[2])
-            whales_info.append({
-                "whale_id": i + 1,
-                "position": w_pos.tolist(),
-                "fitness_score": w_fit,
-                "script_name": w_script,
-                "transformation_name": w_trans,
-                "demographic_group": w_demo
-            })
-        best_position_info = {
-            "best_position": self.best_position.tolist(),
-            "max_fitness_score": best_fitness,
-            "script_name": best_script,
-            "transformation_name": best_trans,
-            "demographic_group": best_demo,
-            "whales": whales_info,
-        }
-        result = de_auditor.run_de(seed_position=best_position_info["best_position"])
-        return result
+                if callback:
+                    try:
+                        callback({
+                            "stage": "WOA",
+                            "iteration": t + 1,
+                            "step": len(self.all_biases),
+                            "fitness_score": float(dummy_fit),
+                            "best_fitness": float(self.best_fitness),
+                            "script_name": dummy_script,
+                            "transformation_name": dummy_trans,
+                            "demographic_group": dummy_demo
+                        })
+                    except Exception:
+                        pass
+        
+        return self.best_position
 
 if __name__ == "__main__":
     
