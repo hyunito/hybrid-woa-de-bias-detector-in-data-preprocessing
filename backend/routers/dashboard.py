@@ -3,7 +3,7 @@ from typing import List, Optional
 import pandas as pd
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 
-from core.config import DATASET_DIR, PIPELINE_DIR, CHUNK_SIZE, SESSION_REGISTRY
+from config import PIPELINE_DIR, CHUNK_SIZE, SESSION_REGISTRY
 
 router = APIRouter(prefix="/api", tags=["Dashboard"])
 
@@ -16,7 +16,7 @@ async def scan_dataset(file: UploadFile = File(...), session_id: Optional[str] =
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only .csv files are supported.")
     
-    file_path = os.path.join(DATASET_DIR, file.filename)
+    file_path = os.path.join(PIPELINE_DIR, file.filename)
     try:
         with open(file_path, "wb") as f_out:
             while chunk := await file.read(CHUNK_SIZE):

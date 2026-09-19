@@ -82,7 +82,7 @@ export default function History() {
     <div className="flex flex-col h-full justify-between gap-6 max-w-7xl mx-auto w-full">
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex-1 flex flex-col justify-between overflow-hidden">
         <div className="py-5 px-8 border-b border-slate-200">
-          <h1 className="text-2xl font-black tracking-tight text-[#0F1B2B]">
+          <h1 className="text-2xl font-bold tracking-tight text-[#0F1B2B]">
             LOG HISTORY
           </h1>
         </div>

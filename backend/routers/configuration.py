@@ -4,8 +4,7 @@ import datetime
 from typing import List, Optional
 from pydantic import BaseModel
 from fastapi import APIRouter
-
-from core.config import PIPELINE_DIR
+from config import PIPELINE_DIR
 
 router = APIRouter(prefix="/api", tags=["Configuration"])
 

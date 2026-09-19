@@ -11,7 +11,6 @@ import {
   Legend,
 } from "recharts";
 import BottomBar from "../components/BottomBar";
-import TerminalLog, { type TerminalLine } from "../components/TerminalLog";
 import { cn } from "../lib/utils";
 
 interface RankedBias {
@@ -54,7 +53,6 @@ interface ProvenanceRecord {
   timestamp: string;
   row_count_before: number;
   row_count_after: number;
-  privileged_group?: string;
   highest_selection_rate?: number;
   intersectional_demographics?: Record<string, any>;
 }
@@ -86,12 +84,19 @@ export default function Results() {
   const [scriptRollups, setScriptRollups] = useState<ScriptRollup[]>([]);
   const [provenanceRecords, setProvenanceRecords] = useState<ProvenanceRecord[]>([]);
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
-  const [terminalLogs, setTerminalLogs] = useState<TerminalLine[]>([]);
   const [threshold, setThreshold] = useState<number>(0.2);
 
   // UI Selection State
   const [selectedBiasIndex, setSelectedBiasIndex] = useState<number>(0);
+  const [visibleBiasCount, setVisibleBiasCount] = useState<number>(10);
   const [copiedId, setCopiedId] = useState(false);
+
+  // Auto-expand visible count if user selects a finding beyond the current page
+  useEffect(() => {
+    if (selectedBiasIndex >= visibleBiasCount) {
+      setVisibleBiasCount(Math.ceil((selectedBiasIndex + 1) / 10) * 10);
+    }
+  }, [selectedBiasIndex, visibleBiasCount]);
 
   // Strict step-completion guard: redirect back if prerequisites not met
   useEffect(() => {
@@ -130,15 +135,8 @@ export default function Results() {
       setIsLoading(true);
       setErrorMessage(null);
 
-      // 1. Try loading cached logs & chart data
+      // 1. Try loading cached chart data
       try {
-        const cachedLogs = sessionStorage.getItem("terminal_logs");
-        if (cachedLogs) {
-          const parsed = JSON.parse(cachedLogs);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setTerminalLogs(parsed);
-          }
-        }
         const cachedChart = sessionStorage.getItem("chart_data");
         if (cachedChart) {
           const parsed = JSON.parse(cachedChart);
@@ -411,20 +409,25 @@ export default function Results() {
               )}
             </div>
 
-            {/* Subgroup Selector Pills (if multiple ranked biases) */}
+            {/* Subgroup Selector Pills (Top 10 + See More) */}
             {rankedBiases.length > 1 && (
               <div className="mb-5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                  Discovered Bias Findings (Ranked by Disparity):
-                </span>
-                <div className="flex gap-2 overflow-x-auto pb-1 custom-terminal-scroll">
-                  {rankedBiases.map((bias, idx) => (
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Discovered Bias Findings (Ranked by Bias Score):
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    Showing {Math.min(visibleBiasCount, rankedBiases.length)} of {rankedBiases.length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-terminal-scroll pipeline-slidebar">
+                  {rankedBiases.slice(0, visibleBiasCount).map((bias, idx) => (
                     <button
                       key={`${bias.script_name}-${bias.transformation_name}-${idx}`}
                       type="button"
                       onClick={() => setSelectedBiasIndex(idx)}
                       className={cn(
-                        "text-xs px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer border flex items-center gap-1.5",
+                        "text-xs px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer border flex items-center gap-1.5 shrink-0",
                         selectedBiasIndex === idx
                           ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                           : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
@@ -435,6 +438,31 @@ export default function Results() {
                       <span className="text-[10px] opacity-80">{bias.transformation_name}</span>
                     </button>
                   ))}
+
+                  {/* See More (+10) Button */}
+                  {visibleBiasCount < rankedBiases.length && (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleBiasCount((prev) => Math.min(prev + 10, rankedBiases.length))}
+                      className="text-xs px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer border border-dashed border-blue-300 bg-blue-50/80 text-blue-700 hover:bg-blue-100 flex items-center gap-1.5 shrink-0 shadow-2xs"
+                      title="Load next 10 findings"
+                    >
+                      <i className="bi bi-plus-circle text-xs" />
+                      <span>See More (+10)</span>
+                    </button>
+                  )}
+
+                  {/* Show Top 10 Button */}
+                  {visibleBiasCount > 10 && (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleBiasCount(10)}
+                      className="text-xs px-2.5 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-all cursor-pointer border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 flex items-center gap-1 shrink-0"
+                      title="Collapse to top 10"
+                    >
+                      <span>Show Top 10</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -516,11 +544,6 @@ export default function Results() {
                       <strong className="text-slate-900 font-bold">{demo.value}</strong>
                     </div>
                   ))}
-                  {currentBias?.source && (
-                    <span className="text-[10px] font-bold bg-slate-200/70 text-slate-700 px-2 py-1 rounded-lg font-mono">
-                      Algorithm: {currentBias.source}
-                    </span>
-                  )}
                 </div>
               </div>
 
@@ -539,81 +562,10 @@ export default function Results() {
                     </span>
                   </div>
                 </div>
-
-                <div>
-                  <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
-                    Privileged Baseline Group
-                  </span>
-                  <span className="text-xs font-mono text-slate-800 bg-emerald-50/70 border border-emerald-200 text-emerald-800 rounded-xl px-2.5 py-1 inline-block">
-                    {matchingProvenance?.privileged_group || "Reference Group (Max Selection Rate)"}
-                  </span>
-                </div>
               </div>
             </div>
 
-            {/* RECOMMENDED ACTIONS */}
-            <div className="mt-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">
-                  <i className="bi bi-shield-check" />
-                </div>
-                <h3 className="text-xs font-black tracking-tight text-[#0F1B2B] uppercase">
-                  RECOMMENDED ACTIONS (MITIGATION STRATEGY)
-                </h3>
-              </div>
 
-              {matchingRecommendation && matchingRecommendation.recommended_actions?.length > 0 ? (
-                <div className="space-y-2.5">
-                  {matchingRecommendation.recommended_actions.map((action, aIdx) => (
-                    <div
-                      key={aIdx}
-                      className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-3.5 flex items-start gap-3 text-xs leading-relaxed"
-                    >
-                      <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold font-mono text-[11px] flex items-center justify-center shrink-0 mt-0.5">
-                        {aIdx + 1}
-                      </span>
-                      <p className="text-slate-700 font-medium">{action}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-slate-50 rounded-2xl p-4 text-xs text-slate-500 italic">
-                  No automated mitigation required; disparity metrics for this transformation are within safe statistical tolerances.
-                </div>
-              )}
-
-              {/* References & Citations */}
-              {matchingRecommendation?.references && matchingRecommendation.references.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-slate-100">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                    Academic Citations & Algorithmic Literature:
-                  </span>
-                  <div className="space-y-1.5">
-                    {matchingRecommendation.references.map((ref, rIdx) => (
-                      <div
-                        key={rIdx}
-                        className="bg-white border border-slate-200 rounded-xl p-2.5 text-[11px] flex items-center justify-between gap-3 shadow-2xs"
-                      >
-                        <span className="text-slate-700 font-medium line-clamp-1">
-                          [{rIdx + 1}] {ref.citation}
-                        </span>
-                        {ref.url && (
-                          <a
-                            href={ref.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-blue-600 hover:text-blue-800 font-bold shrink-0 flex items-center gap-1"
-                          >
-                            <span>Paper</span>
-                            <i className="bi bi-box-arrow-up-right text-[10px]" />
-                          </a>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
@@ -710,29 +662,6 @@ export default function Results() {
               )}
             </div>
 
-            {/* Metrics */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3">
-                <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
-                  Peak Disparity Score
-                </span>
-                <span className="text-base font-black font-mono text-emerald-600">
-                  {chartData.length > 0
-                    ? Math.max(...chartData.map((d) => d.fitness_score)).toFixed(4)
-                    : rankedBiases[0]?.fitness_score?.toFixed(4) || "0.0000"}
-                </span>
-              </div>
-
-              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3">
-                <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
-                  Unique Candidates
-                </span>
-                <span className="text-base font-black font-mono text-slate-800">
-                  {chartData.length || rankedBiases.length}
-                </span>
-              </div>
-            </div>
-
             {/* Root-Cause Summary */}
             {scriptRollups.length > 0 && (
               <div className="border-t border-slate-100 pt-3">
@@ -765,14 +694,83 @@ export default function Results() {
         </div>
       </div>
 
-      {/* Bottom Card */}
-      <TerminalLog
-        logs={terminalLogs}
-        readOnly={true}
-        title="AUDIT EXECUTION TERMINAL LOG"
-        subtitle="Read-Only Console Replay"
-        className="flex-1 min-h-[260px]"
-      />
+      {/* Separate Full-Width Card: Recommended Actions (Mitigation Strategy) */}
+      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md p-6">
+        <div className="border-b border-slate-100 pb-4 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">
+              <i className="bi bi-shield-check" />
+            </div>
+            <div>
+              <h2 className="text-sm font-black tracking-tight text-[#0F1B2B] uppercase">
+                RECOMMENDED ACTIONS (MITIGATION STRATEGY)
+              </h2>
+              <span className="text-[11px] text-slate-500 font-medium">
+                Actionable mitigation recommendations and algorithm literature for {currentBias?.transformation_name || "selected finding"}
+              </span>
+            </div>
+          </div>
+
+          {matchingRecommendation?.category && (
+            <span className="bg-emerald-50 text-emerald-800 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-emerald-200 font-mono self-start sm:self-auto">
+              Strategy Category: {matchingRecommendation.category}
+            </span>
+          )}
+        </div>
+
+        {/* Action Items List */}
+        {matchingRecommendation && matchingRecommendation.recommended_actions?.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+            {matchingRecommendation.recommended_actions.map((action, aIdx) => (
+              <div
+                key={aIdx}
+                className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-4 flex items-start gap-3 text-xs leading-relaxed hover:border-slate-300 transition-all"
+              >
+                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold font-mono text-[11px] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                  {aIdx + 1}
+                </span>
+                <p className="text-slate-700 font-medium">{action}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-slate-50 rounded-2xl p-4 text-xs text-slate-500 italic mb-4">
+            No automated mitigation required; disparity metrics for this transformation are within safe statistical tolerances.
+          </div>
+        )}
+
+        {/* References & Citations */}
+        {matchingRecommendation?.references && matchingRecommendation.references.length > 0 && (
+          <div className="pt-3 border-t border-slate-100">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+              Academic Citations & Algorithmic Literature:
+            </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {matchingRecommendation.references.map((ref, rIdx) => (
+                <div
+                  key={rIdx}
+                  className="bg-white border border-slate-200 rounded-xl p-3 text-[11px] flex items-center justify-between gap-3 shadow-2xs hover:border-slate-300 transition-all"
+                >
+                  <span className="text-slate-700 font-medium line-clamp-2">
+                    [{rIdx + 1}] {ref.citation}
+                  </span>
+                  {ref.url && (
+                    <a
+                      href={ref.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-600 hover:text-blue-800 font-bold shrink-0 flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                      <span>Paper</span>
+                      <i className="bi bi-box-arrow-up-right text-[10px]" />
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Bottom Bar: Action Slot (Postgres status removed) */}
       <BottomBar showDbStatus={false}>

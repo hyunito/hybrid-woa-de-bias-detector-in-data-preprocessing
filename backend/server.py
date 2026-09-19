@@ -19,9 +19,7 @@ from routers.audit import router as audit_router
 from routers.session import router as session_router
 
 app = FastAPI(
-    title="PROBA - Provenance-based Bias Auditor API",
-    description="Modular backend API for data preprocessing audit, WOA-DE search, and mitigation recommendation.",
-    version="2.0.0"
+    title="PROBA - Provenance-based Bias Auditor API"
 )
 
 app.add_middleware(
@@ -39,4 +37,14 @@ app.include_router(audit_router)
 app.include_router(session_router)
 
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run(
+        "server:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=True,
+        reload_dirs=[
+            os.path.join(_backend_dir, "routers"),
+            os.path.join(_backend_dir, "core"),
+            os.path.join(_backend_dir, "engine"),
+        ],
+    )

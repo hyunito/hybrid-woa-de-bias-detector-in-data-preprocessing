@@ -20,25 +20,15 @@ class DEAuditor:
         self.tolerance = tolerance
         self.max_stagnation = max_stagnation
 
+        self.metadata_logs = metadata_logs
         if metadata_logs is not None:
-            fitness._scripts = []
-            fitness._transformations = {}
-            fitness._demographics = {}
-
-            for log in metadata_logs:
-                script = log.get("script_name", "mock_script.py")
-                trans = log.get("transformation_name", "mock_trans")
-
-                if script not in fitness._scripts:
-                    fitness._scripts.append(script)
-                    fitness._transformations[script] = []
-                if trans not in fitness._transformations[script]:
-                    fitness._transformations[script].append(trans)
-                demos = log.get("intersectional_demographics", {})
-                fitness._demographics[(script, trans)] = sorted(list(demos.keys()))
-
-            self.scripts, self.transformations, self.demographics = fitness._scripts, fitness._transformations, fitness._demographics
-            fitness._logs_cache = True
+            if fitness._logs_cache is None or not fitness._fitness_cache:
+                fitness._logs_cache = None
+                fitness._fitness_cache = {}
+                fitness.load_provenance_data(metadata_logs)
+            self.scripts = fitness._scripts
+            self.transformations = fitness._transformations
+            self.demographics = fitness._demographics
         else:
 
             self.scripts, self.transformations, self.demographics = fitness.get_space_dimensions()

@@ -112,6 +112,28 @@ export default function Processing() {
   }, [chartData]);
 
   const socketRef = useRef<WebSocket | null>(null);
+  const pipelineScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollPipeline = (direction: "left" | "right") => {
+    if (pipelineScrollRef.current) {
+      const scrollAmount = 240;
+      pipelineScrollRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  // Auto-scroll pipeline slider to follow executing step
+  useEffect(() => {
+    if (pipelineScrollRef.current && activeScriptIndex > 0) {
+      const cardWidth = 160;
+      pipelineScrollRef.current.scrollTo({
+        left: Math.max(0, (activeScriptIndex - 1) * cardWidth),
+        behavior: "smooth",
+      });
+    }
+  }, [activeScriptIndex]);
 
   // Live Timer: runs while executing pipeline or search
   useEffect(() => {
@@ -340,26 +362,51 @@ export default function Processing() {
                   Sequentially tracking provenance metadata across scripts
                 </p>
               </div>
-              <span
-                className={cn(
-                  "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                  currentStage === "pipeline"
-                    ? "bg-blue-100 text-blue-800 animate-pulse"
-                    : isCompleted
-                    ? "bg-emerald-100 text-emerald-800"
-                    : "bg-slate-100 text-slate-600"
+              <div className="flex items-center gap-2">
+                {pipelineScripts.length > 2 && (
+                  <div className="flex items-center gap-1 bg-slate-100/90 p-0.5 rounded-full border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => scrollPipeline("left")}
+                      className="w-6 h-6 rounded-full hover:bg-white text-slate-600 hover:text-slate-900 flex items-center justify-center text-xs transition-all cursor-pointer shadow-2xs"
+                      title="Slide Left"
+                    >
+                      <i className="bi bi-chevron-left" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => scrollPipeline("right")}
+                      className="w-6 h-6 rounded-full hover:bg-white text-slate-600 hover:text-slate-900 flex items-center justify-center text-xs transition-all cursor-pointer shadow-2xs"
+                      title="Slide Right"
+                    >
+                      <i className="bi bi-chevron-right" />
+                    </button>
+                  </div>
                 )}
-              >
-                {currentStage === "pipeline"
-                  ? "Processing..."
-                  : isCompleted
-                  ? "Completed"
-                  : "Pending"}
-              </span>
+                <span
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                    currentStage === "pipeline"
+                      ? "bg-blue-100 text-blue-800 animate-pulse"
+                      : isCompleted
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-slate-100 text-slate-600"
+                  )}
+                >
+                  {currentStage === "pipeline"
+                    ? "Processing..."
+                    : isCompleted
+                    ? "Completed"
+                    : "Pending"}
+                </span>
+              </div>
             </div>
 
-            {/* Horizontal Flow Nodes */}
-            <div className="py-4 flex items-center justify-start gap-2 overflow-x-auto select-none no-scrollbar min-h-[96px]">
+            {/* Horizontal Flow Nodes with Sleek Slide Bar */}
+            <div
+              ref={pipelineScrollRef}
+              className="py-4 px-3.5 flex items-center justify-start gap-3 overflow-x-auto select-none pipeline-slidebar min-h-[110px]"
+            >
               {pipelineScripts.length === 0 ? (
                 <div className="w-full py-5 flex flex-col items-center justify-center text-slate-400 text-xs gap-1.5 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
                   <i className="bi bi-file-earmark-code text-xl text-slate-300" />

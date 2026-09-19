@@ -1,7 +1,7 @@
 import os
 from fastapi import APIRouter
 
-from core.config import DATASET_DIR, PIPELINE_DIR, SESSION_REGISTRY
+from config import PIPELINE_DIR, BACKEND_DIR, SESSION_REGISTRY
 
 router = APIRouter(prefix="/api/session", tags=["Session"])
 
@@ -39,21 +39,37 @@ def cleanup_session(session_id: str):
 @router.post("/reset")
 def reset_session():
     """
-    Universal reset: purges all uploaded datasets, uploaded scripts, and active session registries.
+    Universal manual reset: purges all uploaded datasets, uploaded scripts, generated tracker
+    configs/metadata, and active session registries, while preserving core utilities and .gitignore.
     """
     deleted = []
     SESSION_REGISTRY.clear()
-    for d in [DATASET_DIR, PIPELINE_DIR]:
-        if not os.path.exists(d):
-            continue
-        for fname in os.listdir(d):
-            fpath = os.path.join(d, fname)
-            if os.path.isdir(fpath) or fname in ("tracker_setup.py", ".gitignore") or fname.endswith(".json"):
+
+    # 1. Purge pipeline uploaded scripts, datasets, and generated runtime files
+    if os.path.exists(PIPELINE_DIR):
+        for fname in os.listdir(PIPELINE_DIR):
+            fpath = os.path.join(PIPELINE_DIR, fname)
+            # Never delete utils directory, git files, or .gitignore
+            if os.path.isdir(fpath) or fname.startswith(".git") or fname == ".gitignore":
                 continue
             try:
                 os.remove(fpath)
-                deleted.append(fname)
+                deleted.append(f"pipeline/{fname}")
             except Exception as e:
-                print(f"[Reset Error] Failed to delete {fname}: {e}")
+                print(f"[Reset Error] Failed to delete {fpath}: {e}")
+
+    # 2. Purge exported provenance metadata
+    for p in [
+        os.path.join(BACKEND_DIR, "provenance_metadata.json"),
+        os.path.abspath(os.path.join(BACKEND_DIR, "..", "provenance_metadata.json")),
+        os.path.join(PIPELINE_DIR, "provenance_metadata.json")
+    ]:
+        if os.path.exists(p) and os.path.isfile(p):
+            try:
+                os.remove(p)
+                deleted.append(os.path.basename(p))
+            except Exception as e:
+                print(f"[Reset Error] Failed to delete {p}: {e}")
+
     print(f"[Session Reset] Purged all session files: {deleted}")
     return {"status": "success", "purged_files": deleted}

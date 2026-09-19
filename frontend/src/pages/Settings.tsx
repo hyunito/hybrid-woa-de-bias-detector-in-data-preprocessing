@@ -1,4 +1,5 @@
-﻿import { useState } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import BottomBar from "../components/BottomBar";
 
 interface SettingsState {
@@ -40,8 +41,11 @@ const DEFAULT_SETTINGS: SettingsState = {
 };
 
 export default function Settings() {
+  const navigate = useNavigate();
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
+  const [restartSuccess, setRestartSuccess] = useState(false);
 
   const updateField = <K extends keyof SettingsState>(field: K, value: SettingsState[K]) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
@@ -49,6 +53,41 @@ export default function Settings() {
 
   const handleReset = () => {
     setSettings(DEFAULT_SETTINGS);
+  };
+
+  const handleRestartSession = async () => {
+    const confirmed = window.confirm(
+      "Restart session and clean up all data?\n\nThis will permanently delete all uploaded datasets and pipeline scripts on the server, clear all browser storage and audit cache, and reset the workflow back to Pipeline Ingestion."
+    );
+    if (!confirmed) return;
+
+    setIsRestarting(true);
+    try {
+      await fetch("http://127.0.0.1:8000/api/session/reset", {
+        method: "POST",
+      });
+    } catch (err) {
+      console.warn("Backend session reset request failed:", err);
+    }
+
+    // Clear all browser storage caches
+    sessionStorage.clear();
+    localStorage.removeItem("proba_session_id");
+    localStorage.removeItem("pipeline_scripts");
+    localStorage.removeItem("dataset_filename");
+    localStorage.removeItem("audit_results");
+    localStorage.removeItem("terminal_logs");
+    localStorage.removeItem("chart_data");
+
+    // Re-evaluate navigation lock guards across Sidebar and wizard steps
+    window.dispatchEvent(new Event("proba_step_change"));
+
+    setIsRestarting(false);
+    setRestartSuccess(true);
+
+    setTimeout(() => {
+      navigate("/");
+    }, 1200);
   };
 
   const handleApply = () => {
@@ -59,10 +98,20 @@ export default function Settings() {
   return (
     <div className="flex flex-col h-full justify-between gap-4 max-w-7xl mx-auto w-full">
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex-1 flex flex-col justify-between overflow-hidden">
-        <div className="py-3 border-b border-slate-200 text-center">
+        <div className="py-3 px-8 border-b border-slate-200 flex items-center justify-between">
           <h1 className="text-2xl font-bold tracking-tight text-[#0F1B2B]">
             SETTINGS
           </h1>
+          <button
+            type="button"
+            onClick={handleRestartSession}
+            disabled={isRestarting}
+            className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200/90 rounded-xl px-4 py-2 shadow-xs transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+            title="Clean up all cache and delete uploaded datasets and scripts"
+          >
+            <i className={`bi ${isRestarting ? "bi-arrow-repeat animate-spin" : "bi-arrow-counterclockwise"}`} />
+            <span>{isRestarting ? "Restarting..." : "Restart Session"}</span>
+          </button>
         </div>
 
         <div className="p-4 flex-1 flex flex-col justify-between gap-2">
@@ -90,7 +139,7 @@ export default function Settings() {
                       type="text"
                       value={settings.dbPort}
                       onChange={(e) => updateField("dbPort", e.target.value)}
-                      placeholder="Port"
+                      placeholder="Port Number"
                       className="w-full border border-slate-300 rounded-xl py-2.5 px-4 text-xs font-medium text-[#0F1B2B] placeholder:text-slate-400 focus:outline-hidden focus:border-slate-500 transition-colors"
                     />
                   </div>
@@ -121,14 +170,14 @@ export default function Settings() {
                       value={settings.dbPass}
                       onChange={(e) => updateField("dbPass", e.target.value)}
                       placeholder="Password"
-                      className="w-full border border-slate-300 rounded-xl py-2.5 pl-4 pr-10 text-xs font-medium text-[#0F1B2B] placeholder:text-slate-400 focus:outline-hidden focus:border-slate-500 transition-colors"
+                      className="w-full border border-slate-300 rounded-xl py-2.5 px-4 text-xs font-medium text-[#0F1B2B] placeholder:text-slate-400 focus:outline-hidden focus:border-slate-500 transition-colors pr-10"
                     />
                     <button
                       type="button"
                       onClick={() => updateField("showPassword", !settings.showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-hidden cursor-pointer"
                     >
-                      <i className={`bi ${settings.showPassword ? "bi-eye" : "bi-eye-slash"} text-sm`} />
+                      <i className={`bi ${settings.showPassword ? "bi-eye-slash-fill" : "bi-eye-fill"}`} />
                     </button>
                   </div>
                 </div>
@@ -286,7 +335,13 @@ export default function Settings() {
         </div>
       </div>
       <BottomBar>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {restartSuccess && (
+            <span className="text-xs font-bold text-rose-600 flex items-center gap-1 animate-fade-in">
+              <i className="bi bi-check-circle-fill" /> Session Reset! Redirecting...
+            </span>
+          )}
+
           {saveSuccess && (
             <span className="text-xs font-bold text-emerald-600 flex items-center gap-1 animate-fade-in">
               <i className="bi bi-check-circle-fill" /> Settings Applied!
@@ -300,7 +355,6 @@ export default function Settings() {
           >
             Reset to Default
           </button>
-
           <button
             type="button"
             onClick={handleApply}

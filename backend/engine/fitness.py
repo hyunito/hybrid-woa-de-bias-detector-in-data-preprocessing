@@ -36,6 +36,8 @@ def load_provenance_data(rows):
         
         demos = log_data.get("intersectional_demographics", {})
         valid_demos = [k for k, v in demos.items() if v.get("total_count", 0) >= 30]
+        if not valid_demos and demos:
+            valid_demos = list(demos.keys())
         _demographics[(script, trans)] = sorted(valid_demos)
         
         rate_priv = log_data.get("highest_selection_rate")

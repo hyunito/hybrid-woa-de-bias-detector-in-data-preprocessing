@@ -7,7 +7,7 @@ import subprocess
 from typing import Dict, List
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 
-from core.config import PIPELINE_DIR, PROJECT_ROOT, BACKEND_DIR
+from config import PIPELINE_DIR, BACKEND_DIR
 from engine.audit import get_fitness_score
 from engine.feedback import generate_mitigation_report
 
@@ -187,7 +187,7 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                 })
                 return
 
-            rel_path = os.path.relpath(script_path, PROJECT_ROOT)
+            rel_path = os.path.relpath(script_path, BACKEND_DIR)
             await websocket.send_json({
                 "type": "terminal_log",
                 "stream": "info",
@@ -208,7 +208,7 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
             env = {
                 **os.environ,
                 "PYTHONUNBUFFERED": "1",
-                "PYTHONPATH": f"{pipeline_dir};{PIPELINE_DIR};{PROJECT_ROOT};{BACKEND_DIR};" + os.environ.get("PYTHONPATH", "")
+                "PYTHONPATH": f"{pipeline_dir};{PIPELINE_DIR};{BACKEND_DIR};{BACKEND_DIR};" + os.environ.get("PYTHONPATH", "")
             }
 
             def run_single_process(target_script):
@@ -218,8 +218,8 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                         [sys.executable, "-u", target_script],
                         stdout=subprocess.PIPE,
                         stderr=subprocess.STDOUT,
-                        stdin=subprocess.DEVNULL,  # Prevent blocking on stdin
-                        cwd=PROJECT_ROOT,
+                        stdin=subprocess.DEVNULL, 
+                        cwd=PIPELINE_DIR,
                         text=True,
                         bufsize=1,
                         env=env
@@ -296,8 +296,8 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
 
         # Check for Provenance Metadata JSON exported by the executed script(s)
         prov_paths = [
-            os.path.join(PROJECT_ROOT, "provenance_metadata.json"),
             os.path.join(BACKEND_DIR, "provenance_metadata.json"),
+            os.path.abspath(os.path.join(BACKEND_DIR, "..", "provenance_metadata.json")),
             os.path.join(PIPELINE_DIR, "provenance_metadata.json")
         ]
         found_prov = None
@@ -357,7 +357,7 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
         })
 
         import hybrid_woa
-        auditor = hybrid_woa.WOAAuditor(num_whales=20, max_iter=10)
+        auditor = hybrid_woa.WOAAuditor(metadata_logs=prov_records, num_whales=20, max_iter=10)
 
         point_queue = asyncio.Queue()
 
@@ -388,10 +388,14 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                         "type": "chart_point",
                         "data": point_data
                     })
+                    # Visual progression delay so user can observe the convergence curve plotting live
+                    await asyncio.sleep(0.045)
             except asyncio.TimeoutError:
                 pass
 
         await search_task
+        # Pause briefly to allow user to inspect final convergence curve before results finalize
+        await asyncio.sleep(0.4)
 
         # Phase 3: Final Audit Report Compilation
         all_biases = auditor.all_biases
