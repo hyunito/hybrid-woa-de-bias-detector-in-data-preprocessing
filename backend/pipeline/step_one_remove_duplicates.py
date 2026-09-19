@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from step_two_handle_missing_data import process_missing_data
 from tracker_setup import tracker
@@ -66,9 +67,20 @@ def process_format_and_duplicates(df):
 
 if __name__ == '__main__':
     print("Starting Data Pipeline...")
-    raw_data_path = 'experiments/data/dirty_ACSIncome_2018_1M.csv'
-    print(f"Loading raw data from {raw_data_path}...")
+    # Prioritize dataset file physically in backend/dataset/
+    backend_dataset_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dataset"))
+    raw_data_path = None
+    if os.path.exists(backend_dataset_dir):
+        candidates = [os.path.join(backend_dataset_dir, f) for f in os.listdir(backend_dataset_dir) if f.endswith('.csv')]
+        if candidates:
+            raw_data_path = candidates[0]
+    
+    if not raw_data_path or not os.path.exists(raw_data_path):
+        raise FileNotFoundError(f"No CSV dataset found in {backend_dataset_dir}. Please upload a dataset in Dashboard first.")
+
+    print(f"Loading raw dataset from disk: {os.path.relpath(raw_data_path, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))}")
 
     df = pd.read_csv(raw_data_path)
     df = process_format_and_duplicates(df)
-    df.to_csv("experiments/data/cleaned_ACSIncome_2018_1M.csv", index=False)
+    cleaned_out = os.path.join(backend_dataset_dir, "cleaned_ACSIncome_2018_1M.csv")
+    df.to_csv(cleaned_out, index=False)

@@ -43,6 +43,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     sessionStorage.setItem("pipeline_scripts", JSON.stringify(scripts));
+    window.dispatchEvent(new Event("proba_step_change"));
   }, [scripts]);
 
   const [isDraggingScripts, setIsDraggingScripts] = useState(false);
@@ -76,6 +77,7 @@ export default function Dashboard() {
       setScanResult(data);
 
       sessionStorage.setItem("scanned_dataset", JSON.stringify(data));
+      window.dispatchEvent(new Event("proba_step_change"));
     } catch (err: any) {
       console.error("Scanning error:", err);
       setScanError(err.message || "Could not connect to backend server. Make sure it is running on port 8000.");
@@ -195,6 +197,8 @@ export default function Dashboard() {
     setScripts((prev) => prev.filter((s) => s.id !== id));
   };
 
+
+
   return (
     <div className="flex flex-col h-full justify-between gap-6 max-w-7xl mx-auto w-full">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 items-stretch">
@@ -276,6 +280,7 @@ export default function Dashboard() {
                       setScanResult(null);
                       setScanError(null);
                       sessionStorage.removeItem("scanned_dataset");
+    window.dispatchEvent(new Event("proba_step_change"));
                     }}
                     className="mt-2 text-xs font-bold text-red-600 hover:underline"
                   >
@@ -427,13 +432,22 @@ export default function Dashboard() {
       </div>
 
       <BottomBar>
-        <NavLink
-          to="/configuration"
-          className="flex items-center gap-2 text-sm font-bold text-[#0F1B2B] hover:text-blue-700 transition-colors group cursor-pointer"
-        >
-          <span>Proceed to Configuration</span>
-          <i className="bi bi-arrow-right text-base group-hover:translate-x-1 transition-transform" />
-        </NavLink>
+        {(scanResult || datasetFile || !!sessionStorage.getItem("scanned_dataset")) && scripts.length > 0 ? (
+          <NavLink
+            to="/configuration"
+            className="flex items-center gap-2 text-sm font-bold text-[#0F1B2B] hover:text-blue-700 transition-colors group cursor-pointer"
+          >
+            <span>Proceed to Configuration</span>
+            <i className="bi bi-arrow-right text-base group-hover:translate-x-1 transition-transform" />
+          </NavLink>
+        ) : (
+          <div
+            className="flex items-center gap-2 text-sm font-bold text-[#0F1B2B] opacity-50 cursor-default select-none pointer-events-none"
+          >
+            <span>Proceed to Configuration</span>
+            <i className="bi bi-arrow-right text-base" />
+          </div>
+        )}
       </BottomBar>
     </div>
   );

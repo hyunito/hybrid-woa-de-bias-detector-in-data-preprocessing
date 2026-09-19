@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useParams, NavLink } from "react-router-dom";
+import { useState, useEffect, useRef, Fragment } from "react";
+import { useParams, NavLink, useNavigate } from "react-router-dom";
 import {
   ResponsiveContainer,
   LineChart,
@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { cn } from "../lib/utils";
 import BottomBar from "../components/BottomBar";
+import TerminalLog, { type TerminalLine } from "../components/TerminalLog";
 
 interface PipelineScript {
   id: string;
@@ -24,14 +25,34 @@ interface ChartPoint {
   best_fitness: number;
 }
 
-interface TerminalLine {
-  id: string;
-  stream: "stdout" | "info" | "json" | "warning" | "error";
-  text: string;
-}
+
 
 export default function Processing() {
   const { auditId: paramAuditId } = useParams();
+  const navigate = useNavigate();
+
+  // Strict step-completion guard: redirect back if prerequisites not met
+  useEffect(() => {
+    const ds = sessionStorage.getItem("scanned_dataset");
+    const sc = sessionStorage.getItem("pipeline_scripts");
+    const cfg = sessionStorage.getItem("audit_config");
+    let hasSc = false;
+    try {
+      const parsed = JSON.parse(sc || "[]");
+      hasSc = Array.isArray(parsed) && parsed.length > 0;
+    } catch {
+      hasSc = false;
+    }
+
+    if (!ds || !hasSc) {
+      navigate("/dashboard", { replace: true });
+      return;
+    }
+    if (!cfg) {
+      navigate("/configuration", { replace: true });
+      return;
+    }
+  }, [navigate]);
 
   // Audit ID setup
   const [auditId] = useState<string>(() => {
@@ -75,12 +96,22 @@ export default function Processing() {
   ]);
   const [socketError, setSocketError] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [isAutoScroll, setIsAutoScroll] = useState(true);
-  const [isFullscreenLog, setIsFullscreenLog] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
+  // Synchronize terminal logs & chart data to sessionStorage for Results page
+  useEffect(() => {
+    if (terminalLogs.length > 0) {
+      sessionStorage.setItem("terminal_logs", JSON.stringify(terminalLogs));
+    }
+  }, [terminalLogs]);
+
+  useEffect(() => {
+    if (chartData.length > 0) {
+      sessionStorage.setItem("chart_data", JSON.stringify(chartData));
+    }
+  }, [chartData]);
+
   const socketRef = useRef<WebSocket | null>(null);
-  const terminalBottomRef = useRef<HTMLDivElement>(null);
 
   // Live Timer: runs while executing pipeline or search
   useEffect(() => {
@@ -101,12 +132,7 @@ export default function Processing() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Auto-scroll terminal
-  useEffect(() => {
-    if (isAutoScroll && terminalBottomRef.current) {
-      terminalBottomRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [terminalLogs, isAutoScroll]);
+
 
   // Connect WebSocket
   const connectWebSocket = () => {
@@ -144,6 +170,10 @@ export default function Processing() {
             if (msg.scripts && Array.isArray(msg.scripts)) {
               setPipelineScripts(msg.scripts);
             }
+          } else if (msg.type === "script_step") {
+            if (typeof msg.index === "number") {
+              setActiveScriptIndex(msg.index);
+            }
           } else if (msg.type === "terminal_log") {
             setTerminalLogs((prev) => [
               ...prev,
@@ -160,7 +190,7 @@ export default function Processing() {
               {
                 id: `pip-done-${Date.now()}`,
                 stream: "info",
-                text: "✓ [PIPELINE] Data preprocessing completed and provenance records captured.",
+                text: "> [PIPELINE] Data preprocessing completed and provenance records captured.",
               },
             ]);
           } else if (msg.type === "audit_start") {
@@ -197,6 +227,7 @@ export default function Processing() {
             // Store full results in sessionStorage
             if (msg.results) {
               sessionStorage.setItem("audit_results", JSON.stringify(msg.results));
+              window.dispatchEvent(new Event("proba_step_change"));
             }
 
             setTerminalLogs((prev) => [
@@ -304,7 +335,7 @@ export default function Processing() {
               {pipelineScripts.length === 0 ? (
                 <div className="w-full py-5 flex flex-col items-center justify-center text-slate-400 text-xs gap-1.5 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
                   <i className="bi bi-file-earmark-code text-xl text-slate-300" />
-                  <span>No pipeline scripts loaded. Please upload and arrange scripts in Dashboard.</span>
+                  <span>Preparing pipeline execution...</span>
                 </div>
               ) : (
                 pipelineScripts.map((script, idx) => {
@@ -313,7 +344,7 @@ export default function Processing() {
                   const isUpcoming = !isExecuted && !isCurrent;
 
                   return (
-                    <React.Fragment key={script.id || idx}>
+                    <Fragment key={script.id || idx}>
                       <div
                         className={cn(
                           "relative flex flex-col items-center justify-center p-3 rounded-2xl border min-w-[130px] max-w-[145px] transition-all flex-shrink-0 shadow-xs",
@@ -367,7 +398,7 @@ export default function Processing() {
                           )}
                         />
                       )}
-                    </React.Fragment>
+                    </Fragment>
                   );
                 })
               )}
@@ -494,88 +525,17 @@ export default function Processing() {
         </div>
       </div>
 
-      {/* Bottom Card: Terminal Log */}
-      <div
-        className={cn(
-          "bg-[#0B1320] rounded-3xl border border-slate-800 shadow-xl flex-1 flex flex-col overflow-hidden transition-all",
-          isFullscreenLog && "fixed inset-6 z-50 rounded-2xl"
-        )}
-      >
-        {/* Terminal Header Bar */}
-        <div className="bg-[#111C2E] py-3 px-6 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-rose-500 inline-block shadow-xs" />
-              <span className="w-3 h-3 rounded-full bg-amber-500 inline-block shadow-xs" />
-              <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block shadow-xs" />
-            </div>
-            <span className="text-xs font-bold text-slate-300 tracking-wider font-mono uppercase ml-2">
-              TERMINAL LOG
-            </span>
-            <span className="text-[10px] text-slate-500 font-mono">
-              ({terminalLogs.length} lines)
-            </span>
-          </div>
+      {/* Bottom Card: Terminal Log (Theme White) */}
+      <TerminalLog
+        logs={terminalLogs}
+        onClear={() => setTerminalLogs([])}
+        title="TERMINAL LOG"
+        subtitle="Live Execution Log"
+        className="flex-1 min-h-[260px]"
+      />
 
-          <div className="flex items-center gap-3">
-            {/* Auto-scroll Toggle */}
-            <button
-              type="button"
-              onClick={() => setIsAutoScroll((prev) => !prev)}
-              className={cn(
-                "text-[10px] px-2.5 py-1 rounded-lg font-mono font-semibold transition-colors cursor-pointer",
-                isAutoScroll ? "bg-slate-700 text-emerald-400" : "bg-slate-800 text-slate-500"
-              )}
-              title="Toggle Auto-Scroll"
-            >
-              <i className="bi bi-arrow-down-circle mr-1" />
-              {isAutoScroll ? "Auto-Scroll: ON" : "Auto-Scroll: OFF"}
-            </button>
-
-            {/* Clear Logs */}
-            <button
-              type="button"
-              onClick={() => setTerminalLogs([])}
-              className="text-slate-400 hover:text-white text-xs transition-colors cursor-pointer p-1"
-              title="Clear Terminal"
-            >
-              <i className="bi bi-trash" />
-            </button>
-
-            {/* Fullscreen Toggle */}
-            <button
-              type="button"
-              onClick={() => setIsFullscreenLog((prev) => !prev)}
-              className="text-slate-400 hover:text-white text-xs transition-colors cursor-pointer p-1"
-              title={isFullscreenLog ? "Exit Fullscreen" : "Expand to Fullscreen"}
-            >
-              <i className={cn("bi", isFullscreenLog ? "bi-fullscreen-exit" : "bi-arrows-fullscreen")} />
-            </button>
-          </div>
-        </div>
-
-        {/* Terminal Body */}
-        <div className="p-5 flex-1 overflow-y-auto font-mono text-xs space-y-1 select-text bg-[#0B1320] custom-terminal-scroll min-h-[220px]">
-          {terminalLogs.map((log) => {
-            let textColor = "text-slate-300";
-            if (log.stream === "info") textColor = "text-sky-400 font-bold";
-            else if (log.stream === "stdout") textColor = "text-emerald-400";
-            else if (log.stream === "json") textColor = "text-amber-200/90";
-            else if (log.stream === "warning") textColor = "text-amber-400";
-            else if (log.stream === "error") textColor = "text-rose-400 font-bold";
-
-            return (
-              <div key={log.id} className={cn("leading-relaxed break-all", textColor)}>
-                {log.text}
-              </div>
-            );
-          })}
-          <div ref={terminalBottomRef} />
-        </div>
-      </div>
-
-      {/* Bottom Bar: Action Slot */}
-      <BottomBar>
+      {/* Bottom Bar: Action Slot (Postgres status removed) */}
+      <BottomBar showDbStatus={false}>
         <div className="flex items-center gap-4">
           {!isCompleted ? (
             <div className="flex items-center gap-2.5 text-xs text-slate-600 font-bold">

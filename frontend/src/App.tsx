@@ -10,18 +10,36 @@ import Settings from "./pages/Settings";
 
 export default function App() {
   useEffect(() => {
-    // When the user exits the session or closes the browser, trigger safe cleanup of uploaded datasets and scripts
-    const handleBeforeUnload = () => {
-      const sessionId = sessionStorage.getItem("current_session_id");
-      if (sessionId) {
-        navigator.sendBeacon(`http://127.0.0.1:8000/api/session/cleanup/${sessionId}`);
-      }
-    };
+    // 1. Session Lifecycle Detection via Browser Session Cookie
+    // Browsers automatically delete session cookies when the browser is closed.
+    // If this cookie is missing, this is a brand new browser window/launch.
+    const isSessionActive = document.cookie
+      .split("; ")
+      .some((c) => c.startsWith("proba_session_active="));
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
+    if (!isSessionActive) {
+      // Browser was closed and reopened: purge any stale session items restored by the browser
+      const oldSessionId = sessionStorage.getItem("current_session_id");
+      if (oldSessionId) {
+        fetch(`http://127.0.0.1:8000/api/session/cleanup/${oldSessionId}`, {
+          method: "POST",
+        }).catch(() => {});
+      }
+
+      sessionStorage.removeItem("pipeline_scripts");
+      sessionStorage.removeItem("scanned_dataset");
+      sessionStorage.removeItem("audit_config");
+      sessionStorage.removeItem("current_audit_id");
+      sessionStorage.removeItem("audit_results");
+
+      const newSessionId = Math.random().toString(36).substring(2, 11);
+      sessionStorage.setItem("current_session_id", newSessionId);
+
+      // Set session cookie (no expires attribute => deleted when browser closes)
+      document.cookie = "proba_session_active=true; path=/";
+    }
+
+    // Pipeline scripts and dataset stay securely in their respective backend folders
   }, []);
 
   return (
@@ -37,6 +55,7 @@ export default function App() {
             <Route path="/configuration" element={<Configuration />} />
             <Route path="/processing" element={<Processing />} />
             <Route path="/results" element={<Results />} />
+            <Route path="/results/:auditId" element={<Results />} />
             <Route path="/history" element={<History />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>

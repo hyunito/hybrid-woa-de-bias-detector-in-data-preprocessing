@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../lib/utils";
 import BottomBar from "../components/BottomBar";
@@ -27,6 +27,23 @@ interface ScannedDataset {
 
 export default function Configuration() {
   const navigate = useNavigate();
+
+  // Strict step-completion guard: redirect back to dashboard if prerequisites not met
+  useEffect(() => {
+    const ds = sessionStorage.getItem("scanned_dataset");
+    const sc = sessionStorage.getItem("pipeline_scripts");
+    let hasSc = false;
+    try {
+      const parsed = JSON.parse(sc || "[]");
+      hasSc = Array.isArray(parsed) && parsed.length > 0;
+    } catch {
+      hasSc = false;
+    }
+
+    if (!ds || !hasSc) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -140,6 +157,7 @@ export default function Configuration() {
 
     // Save configuration to sessionStorage
     sessionStorage.setItem("audit_config", JSON.stringify(config));
+    window.dispatchEvent(new Event("proba_step_change"));
 
     try {
       const response = await fetch("http://127.0.0.1:8000/api/tracker/setup", {
@@ -195,7 +213,7 @@ export default function Configuration() {
                   <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-300 rounded-2xl shadow-xl z-30 py-2 max-h-56 overflow-y-auto">
                     {availableColumns.length === 0 ? (
                       <div className="px-5 py-3 text-xs text-slate-400">
-                        No columns found. Please upload a dataset in the Dashboard first.
+                        No columns available.
                       </div>
                     ) : (
                       availableColumns.map((col) => {
@@ -231,7 +249,7 @@ export default function Configuration() {
                 <div className="space-y-3">
                   {selectedAttributes.length === 0 ? (
                     <div className="py-6 text-center text-xs text-slate-400 font-medium">
-                      No demographic attributes selected yet. Select from above.
+                      Select demographic attributes from dropdown above.
                     </div>
                   ) : (
                     selectedAttributes.map((attr) => (
