@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import time
 import asyncio
 import subprocess
 from typing import Dict, List
@@ -128,6 +129,8 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
     await websocket.accept()
     print(f"[WebSocket] Client connected for audit: {audit_id}")
 
+    active_process = None
+
     try:
         # 1. Read pipeline configuration
         config_path = os.path.join(PIPELINE_DIR, "tracker_config.json")
@@ -138,7 +141,7 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                 saved_cfg = json.load(f)
                 pipeline_scripts = saved_cfg.get("pipeline_scripts", [])
 
-        # Strict check: Never run hardcoded pipelines or random searches without configured scripts
+        # Strict check: Never run without configured scripts
         if not pipeline_scripts:
             await websocket.send_json({
                 "type": "terminal_log",
@@ -172,14 +175,15 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
             script_path = os.path.join(PIPELINE_DIR, script_name)
 
             if not os.path.exists(script_path):
+                err_msg = f"Configured script file '{script_name}' was not found on server."
                 await websocket.send_json({
                     "type": "terminal_log",
                     "stream": "error",
-                    "text": f"> [PROBA] Error: Configured script file '{script_name}' was not found on server."
+                    "text": f"> [PROBA ERROR] {err_msg}"
                 })
                 await websocket.send_json({
                     "type": "error",
-                    "message": f"Script file '{script_name}' not found on server."
+                    "message": err_msg
                 })
                 return
 
@@ -198,7 +202,7 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                 "name": script_name
             })
 
-            # Subprocess runner with line streaming
+            # Subprocess runner with unbuffered live line streaming and stdin disconnected
             output_queue = asyncio.Queue()
             pipeline_dir = os.path.dirname(script_path)
             env = {
@@ -208,16 +212,19 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
             }
 
             def run_single_process(target_script):
+                nonlocal active_process
                 try:
                     proc = subprocess.Popen(
                         [sys.executable, "-u", target_script],
                         stdout=subprocess.PIPE,
                         stderr=subprocess.STDOUT,
+                        stdin=subprocess.DEVNULL,  # Prevent blocking on stdin
                         cwd=PROJECT_ROOT,
                         text=True,
                         bufsize=1,
                         env=env
                     )
+                    active_process = proc
                     for line in iter(proc.stdout.readline, ''):
                         clean = line.rstrip()
                         if clean:
@@ -227,12 +234,17 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                 except Exception as ex:
                     loop.call_soon_threadsafe(output_queue.put_nowait, f"[Subprocess Error] {ex}")
                     return -1
+                finally:
+                    active_process = None
 
             subp_task = asyncio.create_task(asyncio.to_thread(run_single_process, script_path))
+            proc_start_time = time.time()
+            last_output_time = time.time()
 
             while not subp_task.done() or not output_queue.empty():
                 try:
-                    line = await asyncio.wait_for(output_queue.get(), timeout=0.05)
+                    line = await asyncio.wait_for(output_queue.get(), timeout=1.0)
+                    last_output_time = time.time()
                     line_lower = line.lower()
 
                     # Dynamic step detection across all configured scripts
@@ -251,19 +263,28 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                         "text": line
                     })
                 except asyncio.TimeoutError:
-                    pass
+                    # If process is running without log output for > 4 seconds, pulse progress heartbeat
+                    if not subp_task.done() and (time.time() - last_output_time > 4.0):
+                        elapsed_s = int(time.time() - proc_start_time)
+                        await websocket.send_json({
+                            "type": "terminal_log",
+                            "stream": "info",
+                            "text": f"> [PROBA] Processing dataset transformation... ({elapsed_s}s elapsed)"
+                        })
+                        last_output_time = time.time()
 
             returncode = await subp_task
 
             if returncode != 0:
+                err_text = f"Pipeline script '{script_name}' failed with return code {returncode}."
                 await websocket.send_json({
                     "type": "terminal_log",
                     "stream": "error",
-                    "text": f"> Pipeline preprocessing exited with code: {returncode}"
+                    "text": f"> [PROBA ERROR] {err_text}"
                 })
                 await websocket.send_json({
                     "type": "error",
-                    "message": f"Pipeline script '{script_name}' failed with return code {returncode}."
+                    "message": err_text
                 })
                 return
 
@@ -286,14 +307,15 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                 break
 
         if not found_prov:
+            err_msg = "No provenance_metadata.json was generated. Ensure your preprocessing functions are tracked with @tracker.track."
             await websocket.send_json({
                 "type": "terminal_log",
                 "stream": "error",
-                "text": "> [PROBA] Error: No provenance_metadata.json was generated. Ensure your preprocessing functions are tracked with @tracker.track."
+                "text": f"> [PROBA ERROR] {err_msg}"
             })
             await websocket.send_json({
                 "type": "error",
-                "message": "No provenance metadata generated by pipeline script."
+                "message": err_msg
             })
             return
 
@@ -421,6 +443,12 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
 
     except WebSocketDisconnect:
         print(f"[WebSocket] Client disconnected: {audit_id}")
+        if active_process and active_process.poll() is None:
+            print(f"[WebSocket] Terminating orphaned subprocess PID {active_process.pid} for {audit_id}")
+            try:
+                active_process.terminate()
+            except Exception:
+                pass
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -428,8 +456,19 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
         print(f"[WebSocket] Error during audit streaming: {err_msg}")
         try:
             await websocket.send_json({
+                "type": "terminal_log",
+                "stream": "error",
+                "text": f"> [SYSTEM ERROR] {err_msg}"
+            })
+            await websocket.send_json({
                 "type": "error",
                 "message": err_msg
             })
         except Exception:
             pass
+    finally:
+        if active_process and active_process.poll() is None:
+            try:
+                active_process.terminate()
+            except Exception:
+                pass

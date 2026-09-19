@@ -244,8 +244,17 @@ export default function Processing() {
               },
             ]);
           } else if (msg.type === "error") {
-            setSocketError(msg.message || "An unexpected error occurred on the backend.");
+            const errMsg = msg.message || "An unexpected error occurred on the backend.";
+            setSocketError(errMsg);
             setCurrentStage("error");
+            setTerminalLogs((prev) => [
+              ...prev,
+              {
+                id: `err-${Date.now()}`,
+                stream: "error",
+                text: `> [SYSTEM ERROR] ${errMsg}`,
+              },
+            ]);
           }
         } catch (err) {
           console.error("[WebSocket] Failed to parse message:", err);
@@ -254,12 +263,31 @@ export default function Processing() {
 
       ws.onerror = (err) => {
         console.error("[WebSocket] Error:", err);
-        setSocketError("WebSocket connection failed. Verify that server.py is running.");
+        const errMsg = "WebSocket connection failed or severed. Verify that backend server.py is running.";
+        setSocketError(errMsg);
         setCurrentStage("error");
+        setTerminalLogs((prev) => [
+          ...prev,
+          {
+            id: `err-ws-${Date.now()}`,
+            stream: "error",
+            text: `> [CONNECTION ERROR] ${errMsg}`,
+          },
+        ]);
       };
 
-      ws.onclose = () => {
-        console.log("[WebSocket] Connection closed.");
+      ws.onclose = (ev) => {
+        console.log("[WebSocket] Connection closed:", ev.code, ev.reason);
+        if (currentStage !== "completed" && !isCompleted) {
+          setTerminalLogs((prev) => [
+            ...prev,
+            {
+              id: `close-${Date.now()}`,
+              stream: "warning",
+              text: `> [WEBSOCKET] Connection closed by server (Code: ${ev.code}).`,
+            },
+          ]);
+        }
       };
     } catch (e: any) {
       setSocketError(e.message || "Failed to initialize WebSocket client.");

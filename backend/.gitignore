@@ -1,9 +1,8 @@
-# Ignore uploaded pipeline scripts and generated files
+
 pipeline/*.py
 pipeline/*.json
 dataset/*.csv
 __pycache__/
 
-# Preserve the provenance tracking utility
 !pipeline/utils/
 !pipeline/utils/provenance.py

@@ -57,24 +57,24 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex flex-col h-full justify-between gap-6 max-w-7xl mx-auto w-full">
+    <div className="flex flex-col h-full justify-between gap-4 max-w-7xl mx-auto w-full">
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex-1 flex flex-col justify-between overflow-hidden">
-        <div className="py-5 px-8 border-b border-slate-200 text-center">
-          <h1 className="text-2xl font-black tracking-tight text-[#0F1B2B]">
+        <div className="py-3 border-b border-slate-200 text-center">
+          <h1 className="text-2xl font-bold tracking-tight text-[#0F1B2B]">
             SETTINGS
           </h1>
         </div>
 
-        <div className="p-8 flex-1 flex flex-col justify-between gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
-            
+        <div className="p-4 flex-1 flex flex-col justify-between gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
+
             <div className="border border-slate-300/90 rounded-2xl p-6 bg-white flex flex-col justify-between shadow-xs">
               <div>
-                <h2 className="text-xs font-bold text-[#0F1B2B] tracking-wider pb-3 border-b border-slate-200 mb-5 uppercase">
+                <h2 className="text-xs font-bold text-[#0F1B2B] tracking-wider pb-3 border-b border-slate-200 mb-3 uppercase">
                   DATABASE SETUP
                 </h2>
 
-                <div className="space-y-4">
+                <div className="space-y-2">
                   <div>
                     <input
                       type="text"
@@ -135,14 +135,14 @@ export default function Settings() {
               </div>
             </div>
 
-            <div className="flex flex-col justify-between gap-5">
-              
+            <div className="flex flex-col justify-between gap-3">
+
               <div className="border border-slate-300/90 rounded-2xl p-5 bg-white shadow-xs">
-                <h2 className="text-xs font-bold text-[#0F1B2B] tracking-wider pb-3 border-b border-slate-200 mb-4 uppercase">
+                <h2 className="text-xs font-bold text-[#0F1B2B] tracking-wider pb-3 border-b border-slate-200 mb-2 uppercase">
                   WHALE OPTIMIZATION ALGORITHM
                 </h2>
 
-                <div className="space-y-3.5">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-[#0F1B2B]">
                       Number of Searching Agents
@@ -178,11 +178,11 @@ export default function Settings() {
               </div>
 
               <div className="border border-slate-300/90 rounded-2xl p-5 bg-white shadow-xs">
-                <h2 className="text-xs font-bold text-[#0F1B2B] tracking-wider pb-3 border-b border-slate-200 mb-4 uppercase">
+                <h2 className="text-xs font-bold text-[#0F1B2B] tracking-wider pb-3 border-b border-slate-200 mb-2 uppercase">
                   DIFFERENTIAL EVOLUTION
                 </h2>
 
-                <div className="space-y-3.5">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-[#0F1B2B]">
                       Population Size
@@ -253,8 +253,8 @@ export default function Settings() {
 
             </div>
           </div>
-          <div className="border border-slate-300/90 rounded-2xl p-5 px-6 bg-white shadow-xs">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+          <div className="border border-slate-300/90 rounded-2xl p-2 px-6 bg-white shadow-xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-2">
               <h2 className="text-xs font-bold text-[#0F1B2B] tracking-wider uppercase">
                 BIAS THRESHOLD
               </h2>
@@ -263,7 +263,7 @@ export default function Settings() {
               </span>
             </div>
 
-            <div className="py-2 px-2">
+            <div className="py-1 px-2">
               <input
                 type="range"
                 min="0"
@@ -286,7 +286,7 @@ export default function Settings() {
         </div>
       </div>
       <BottomBar>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           {saveSuccess && (
             <span className="text-xs font-bold text-emerald-600 flex items-center gap-1 animate-fade-in">
               <i className="bi bi-check-circle-fill" /> Settings Applied!
