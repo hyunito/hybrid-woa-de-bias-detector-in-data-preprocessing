@@ -498,7 +498,7 @@ export default function Configuration() {
               </>
             ) : (
               <>
-                <span>Process</span>
+                <span>Next</span>
                 <i className="bi bi-arrow-right text-base group-hover:translate-x-1 transition-transform" />
               </>
             )}

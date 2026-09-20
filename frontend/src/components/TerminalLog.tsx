@@ -13,7 +13,6 @@ interface TerminalLogProps {
   onClear?: () => void;
   onProcess?: () => void;
   isProcessing?: boolean;
-  processLabel?: string;
   viewResultsUrl?: string;
   isCompleted?: boolean;
   readOnly?: boolean;
@@ -27,7 +26,6 @@ export default function TerminalLog({
   onClear,
   onProcess,
   isProcessing = false,
-  processLabel = "Process",
   viewResultsUrl,
   isCompleted = false,
   readOnly = false,
@@ -112,15 +110,15 @@ export default function TerminalLog({
                 onClick={onProcess}
                 disabled={isProcessing}
                 className={cn(
-                  "text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs",
+                  "text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shadow-2xs bg-blue-600 text-white",
                   isProcessing
-                    ? "bg-blue-100 text-blue-700 cursor-not-allowed opacity-80"
-                    : "bg-blue-600 hover:bg-blue-700 text-white active:scale-95"
+                    ? "cursor-not-allowed opacity-60"
+                    : "hover:bg-blue-700 cursor-pointer active:scale-95"
                 )}
-                title={isProcessing ? "Processing in progress..." : "Run Pipeline & Audit"}
+                title="Process"
               >
-                <i className={cn("bi", isProcessing ? "bi-arrow-repeat animate-spin" : "bi-play-fill text-sm")} />
-                <span>{isProcessing ? "Processing..." : processLabel}</span>
+                <i className="bi bi-play-fill text-sm" />
+                <span>Process</span>
               </button>
             )}
 
@@ -197,14 +195,15 @@ export default function TerminalLog({
                     onClick={onProcess}
                     disabled={isProcessing}
                     className={cn(
-                      "text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs",
+                      "text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shadow-2xs bg-blue-600 text-white",
                       isProcessing
-                        ? "bg-blue-100 text-blue-700 cursor-not-allowed opacity-80"
-                        : "bg-blue-600 hover:bg-blue-700 text-white active:scale-95"
+                        ? "cursor-not-allowed opacity-60"
+                        : "hover:bg-blue-700 cursor-pointer active:scale-95"
                     )}
+                    title="Process"
                   >
-                    <i className={cn("bi", isProcessing ? "bi-arrow-repeat animate-spin" : "bi-play-fill text-sm")} />
-                    <span>{isProcessing ? "Processing..." : processLabel}</span>
+                    <i className="bi bi-play-fill text-sm" />
+                    <span>Process</span>
                   </button>
                 )}
                 {viewResultsUrl && (

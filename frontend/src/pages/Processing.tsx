@@ -86,6 +86,7 @@ export default function Processing() {
   const [socketError, setSocketError] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const isProcessing = currentStage === "connecting" || currentStage === "pipeline" || currentStage === "evaluating";
 
   // Synchronize terminal logs & chart data to sessionStorage for Results page
   useEffect(() => {
@@ -246,12 +247,12 @@ export default function Processing() {
               {
                 id: `done-${Date.now()}`,
                 stream: "info",
-                text: `✓ [AUDIT COMPLETED] Identified ${msg.total_ranked_findings || 0} candidate subgroups, generated ${msg.qualifying_recommendations || 0} actionable mitigation recommendations.`,
+                text: `[AUDIT COMPLETED] Identified ${msg.total_ranked_findings || 0} candidate subgroups, generated ${msg.qualifying_recommendations || 0} actionable mitigation recommendations.`,
               },
               {
                 id: `nav-${Date.now()}`,
                 stream: "info",
-                text: `[SYSTEM] You may now click 'View Result →' to inspect the full Bias Audit Report.`,
+                text: `[SYSTEM] You may now click 'View Results ->' to inspect the full Bias Audit Report.`,
               },
             ]);
           } else if (msg.type === "error") {
@@ -411,9 +412,7 @@ export default function Processing() {
                       ? "Connecting..."
                       : currentStage === "evaluating"
                         ? "Evaluating..."
-                        : isCompleted
-                          ? "Completed"
-                          : "Ready"}
+                        : "Ready"}
                 </span>
               </div>
             </div>
@@ -625,8 +624,7 @@ export default function Processing() {
         logs={terminalLogs}
         onClear={() => setTerminalLogs([])}
         onProcess={handleStartProcess}
-        isProcessing={currentStage === "connecting" || currentStage === "pipeline" || currentStage === "evaluating"}
-        processLabel={isCompleted ? "Re-process" : "Process"}
+        isProcessing={isProcessing}
         viewResultsUrl={`/results/${auditId}`}
         isCompleted={isCompleted}
         title="TERMINAL LOG"

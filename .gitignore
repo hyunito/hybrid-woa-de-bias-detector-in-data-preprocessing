@@ -8,3 +8,4 @@ __pycache__/
 !frontend/*.json
 *.txt
 *.docx
+experiments/inputs_for_ui
