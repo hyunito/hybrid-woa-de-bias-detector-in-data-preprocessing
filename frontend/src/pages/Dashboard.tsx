@@ -78,9 +78,10 @@ export default function Dashboard() {
 
       sessionStorage.setItem("scanned_dataset", JSON.stringify(data));
       window.dispatchEvent(new Event("proba_step_change"));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Scanning error:", err);
-      setScanError(err.message || "Could not connect to backend server. Make sure it is running on port 8000.");
+      const message = err instanceof Error ? err.message : "Could not connect to backend server. Make sure it is running on port 8000.";
+      setScanError(message);
     } finally {
       setIsScanning(false);
     }
@@ -110,9 +111,10 @@ export default function Dashboard() {
       const data = await response.json();
       console.log("[Dashboard] Uploaded scripts successfully to backend/pipeline/:", data);
       setScriptUploadNotice(`Saved ${data.uploaded_count} script(s) to pipeline engine.`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Script upload error:", err);
-      setScriptUploadNotice(`Upload warning: ${err.message}`);
+      const message = err instanceof Error ? err.message : "Failed to upload scripts";
+      setScriptUploadNotice(`Upload warning: ${message}`);
     } finally {
       setIsUploadingScripts(false);
     }

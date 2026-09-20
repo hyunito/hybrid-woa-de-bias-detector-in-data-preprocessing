@@ -1,5 +1,5 @@
 from hybrid_woa import WOAAuditor
-from feedback import generate_mitigation_report, print_mitigation_report
+from feedback import generate_mitigation_report
 
 
 def get_fitness_score(bias_item):
@@ -9,7 +9,7 @@ def get_fitness_score(bias_item):
 def run_audit(threshold=0.2):
     
     auditor = WOAAuditor()
-    results = auditor.run_woa()
+    auditor.run_woa()
 
     # Retrieve all biases accumulated across both WOA and DE stages
     all_biases = auditor.all_biases

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, NavLink, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   ResponsiveContainer,
   LineChart,
@@ -10,8 +10,8 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import BottomBar from "../components/BottomBar";
 import { cn } from "../lib/utils";
+import { hasPrerequisitesForConfiguration } from "../lib/storage";
 
 interface RankedBias {
   rank: number;
@@ -54,7 +54,15 @@ interface ProvenanceRecord {
   row_count_before: number;
   row_count_after: number;
   highest_selection_rate?: number;
-  intersectional_demographics?: Record<string, any>;
+  intersectional_demographics?: Record<
+    string,
+    {
+      total_count?: number;
+      selection_rate?: number;
+      selection_rate_favorable_outcomes?: number;
+      [key: string]: unknown;
+    }
+  >;
 }
 
 interface ChartPoint {
@@ -67,13 +75,14 @@ export default function Results() {
   const { auditId: paramAuditId } = useParams();
   const navigate = useNavigate();
 
-  const auditId = useMemo(() => {
+  // Stable audit ID initialized once
+  const [auditId] = useState<string>(() => {
     return (
       paramAuditId ||
       sessionStorage.getItem("current_audit_id") ||
-      "audit-" + Math.random().toString(36).substring(2, 8)
+      "audit-" + Date.now().toString(36)
     );
-  }, [paramAuditId]);
+  });
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -91,37 +100,25 @@ export default function Results() {
   const [visibleBiasCount, setVisibleBiasCount] = useState<number>(10);
   const [copiedId, setCopiedId] = useState(false);
 
-  // Auto-expand visible count if user selects a finding beyond the current page
-  useEffect(() => {
-    if (selectedBiasIndex >= visibleBiasCount) {
-      setVisibleBiasCount(Math.ceil((selectedBiasIndex + 1) / 10) * 10);
+  // Select finding and auto-expand page if needed
+  const handleSelectBias = (index: number) => {
+    setSelectedBiasIndex(index);
+    if (index >= visibleBiasCount) {
+      setVisibleBiasCount(Math.ceil((index + 1) / 10) * 10);
     }
-  }, [selectedBiasIndex, visibleBiasCount]);
+  };
 
-  // Strict step-completion guard: redirect back if prerequisites not met
+  // Redirect back if prerequisite data is missing
   useEffect(() => {
-    const ds = sessionStorage.getItem("scanned_dataset");
-    const sc = sessionStorage.getItem("pipeline_scripts");
-    const cfg = sessionStorage.getItem("audit_config");
-    const res = sessionStorage.getItem("audit_results");
-
-    let hasSc = false;
-    try {
-      const parsed = JSON.parse(sc || "[]");
-      hasSc = Array.isArray(parsed) && parsed.length > 0;
-    } catch {
-      hasSc = false;
-    }
-
-    if (!ds || !hasSc) {
+    if (!hasPrerequisitesForConfiguration()) {
       navigate("/dashboard", { replace: true });
       return;
     }
-    if (!cfg) {
+    if (!sessionStorage.getItem("audit_config")) {
       navigate("/configuration", { replace: true });
       return;
     }
-    if (!res && !paramAuditId) {
+    if (!sessionStorage.getItem("audit_results") && !paramAuditId) {
       navigate("/processing", { replace: true });
       return;
     }
@@ -188,12 +185,11 @@ export default function Results() {
             foundInSession = true;
           }
         } else if (!foundInSession) {
-          // If neither session nor backend has this ID
           if (isMounted) {
             setErrorMessage(`Audit report for session #${auditId} is currently unavailable.`);
           }
         }
-      } catch (err: any) {
+      } catch {
         if (!foundInSession && isMounted) {
           setErrorMessage("Failed to connect to PROBA backend server. Verify that server.py is running.");
         }
@@ -322,7 +318,7 @@ export default function Results() {
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm py-5 px-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-black tracking-tight text-[#0F1B2B]">
+            <h1 className="text-2xl font-bold tracking-tight text-[#0F1B2B]">
               BIAS AUDIT REPORT AND FEEDBACK
             </h1>
             <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
@@ -393,7 +389,7 @@ export default function Results() {
                   <i className="bi bi-diagram-3-fill" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-black tracking-tight text-[#0F1B2B] uppercase">
+                  <h2 className="text-sm font-bold tracking-tight text-[#0F1B2B] uppercase">
                     TRACEABILITY LINEAGE
                   </h2>
                   <span className="text-[11px] text-slate-500 font-medium">
@@ -425,7 +421,7 @@ export default function Results() {
                     <button
                       key={`${bias.script_name}-${bias.transformation_name}-${idx}`}
                       type="button"
-                      onClick={() => setSelectedBiasIndex(idx)}
+                      onClick={() => handleSelectBias(idx)}
                       className={cn(
                         "text-xs px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer border flex items-center gap-1.5 shrink-0",
                         selectedBiasIndex === idx
@@ -579,7 +575,7 @@ export default function Results() {
                   <i className="bi bi-graph-up-arrow" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-black tracking-tight text-[#0F1B2B] uppercase">
+                  <h2 className="text-sm font-bold tracking-tight text-[#0F1B2B] uppercase">
                     BIAS SCORE VS. ITERATIONS
                   </h2>
                   <span className="text-[11px] text-slate-500 font-medium">
@@ -649,7 +645,7 @@ export default function Results() {
                     />
                     <Line
                       type="monotone"
-                      name="Best Envelope"
+                      name="Highest Bias Found"
                       dataKey="best_fitness"
                       stroke="#10B981"
                       strokeWidth={2}
@@ -702,7 +698,7 @@ export default function Results() {
               <i className="bi bi-shield-check" />
             </div>
             <div>
-              <h2 className="text-sm font-black tracking-tight text-[#0F1B2B] uppercase">
+              <h2 className="text-sm font-bold tracking-tight text-[#0F1B2B] uppercase">
                 RECOMMENDED ACTIONS (MITIGATION STRATEGY)
               </h2>
               <span className="text-[11px] text-slate-500 font-medium">
@@ -710,12 +706,6 @@ export default function Results() {
               </span>
             </div>
           </div>
-
-          {matchingRecommendation?.category && (
-            <span className="bg-emerald-50 text-emerald-800 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-emerald-200 font-mono self-start sm:self-auto">
-              Strategy Category: {matchingRecommendation.category}
-            </span>
-          )}
         </div>
 
         {/* Action Items List */}
@@ -771,37 +761,6 @@ export default function Results() {
           </div>
         )}
       </div>
-
-      {/* Bottom Bar: Action Slot (Postgres status removed) */}
-      <BottomBar showDbStatus={false}>
-        <div className="flex items-center justify-between w-full">
-          <NavLink
-            to="/dashboard"
-            className="flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
-          >
-            <i className="bi bi-arrow-left text-sm" />
-            <span>Run New Audit</span>
-          </NavLink>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleDownloadReport}
-              className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
-            >
-              <i className="bi bi-download" />
-              <span>Download Report (JSON)</span>
-            </button>
-            <NavLink
-              to="/history"
-              className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-800 transition-colors cursor-pointer"
-            >
-              <span>View Audit History</span>
-              <i className="bi bi-arrow-right" />
-            </NavLink>
-          </div>
-        </div>
-      </BottomBar>
     </div>
   );
 }

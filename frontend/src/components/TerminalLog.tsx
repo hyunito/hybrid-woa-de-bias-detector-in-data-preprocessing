@@ -1,3 +1,4 @@
+import { NavLink } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "../lib/utils";
 
@@ -10,6 +11,11 @@ export interface TerminalLine {
 interface TerminalLogProps {
   logs: TerminalLine[];
   onClear?: () => void;
+  onProcess?: () => void;
+  isProcessing?: boolean;
+  processLabel?: string;
+  viewResultsUrl?: string;
+  isCompleted?: boolean;
   readOnly?: boolean;
   title?: string;
   subtitle?: string;
@@ -19,18 +25,32 @@ interface TerminalLogProps {
 export default function TerminalLog({
   logs,
   onClear,
+  onProcess,
+  isProcessing = false,
+  processLabel = "Process",
+  viewResultsUrl,
+  isCompleted = false,
   readOnly = false,
   title = "TERMINAL LOG",
   subtitle,
   className,
 }: TerminalLogProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const terminalBottomRef = useRef<HTMLDivElement>(null);
+  const terminalBodyRef = useRef<HTMLDivElement>(null);
+  const fullscreenBodyRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom as logs arrive
+  // Auto-scroll terminal body to bottom without scrolling outer parent container
   useEffect(() => {
-    terminalBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (terminalBodyRef.current) {
+      terminalBodyRef.current.scrollTop = terminalBodyRef.current.scrollHeight;
+    }
   }, [logs]);
+
+  useEffect(() => {
+    if (isFullscreen && fullscreenBodyRef.current) {
+      fullscreenBodyRef.current.scrollTop = fullscreenBodyRef.current.scrollHeight;
+    }
+  }, [logs, isFullscreen]);
 
   const renderLogLines = () => {
     if (logs.length === 0) {
@@ -67,12 +87,12 @@ export default function TerminalLog({
     <>
       <div
         className={cn(
-          "bg-white rounded-3xl border border-slate-200/90 shadow-md flex flex-col justify-between overflow-hidden",
+          "bg-white rounded-3xl border border-slate-200/90 shadow-md flex flex-col overflow-hidden",
           className
         )}
       >
         {/* Terminal Header */}
-        <div className="py-3 px-6 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between">
+        <div className="shrink-0 pt-3 pb-2 px-8 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <i className="bi bi-terminal text-slate-700 text-sm" />
             <h2 className="text-xs font-bold tracking-wider text-slate-800 uppercase">
@@ -85,7 +105,48 @@ export default function TerminalLog({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
+            {onProcess && (
+              <button
+                type="button"
+                onClick={onProcess}
+                disabled={isProcessing}
+                className={cn(
+                  "text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs",
+                  isProcessing
+                    ? "bg-blue-100 text-blue-700 cursor-not-allowed opacity-80"
+                    : "bg-blue-600 hover:bg-blue-700 text-white active:scale-95"
+                )}
+                title={isProcessing ? "Processing in progress..." : "Run Pipeline & Audit"}
+              >
+                <i className={cn("bi", isProcessing ? "bi-arrow-repeat animate-spin" : "bi-play-fill text-sm")} />
+                <span>{isProcessing ? "Processing..." : processLabel}</span>
+              </button>
+            )}
+
+            {viewResultsUrl && (
+              isCompleted ? (
+                <NavLink
+                  to={viewResultsUrl}
+                  className="text-xs font-bold px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                  title="View completed Bias Audit Report"
+                >
+                  <span>View Results</span>
+                  <i className="bi bi-arrow-right text-xs" />
+                </NavLink>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed flex items-center gap-1.5 opacity-60"
+                  title="View Results will unlock once audit processing finishes"
+                >
+                  <span>View Results</span>
+                  <i className="bi bi-arrow-right text-xs" />
+                </button>
+              )
+            )}
+
             {!readOnly && onClear && (
               <button
                 type="button"
@@ -109,9 +170,8 @@ export default function TerminalLog({
         </div>
 
         {/* Terminal Body (Theme White) */}
-        <div className="p-5 flex-1 overflow-y-auto font-mono text-xs space-y-1.5 select-text bg-white custom-terminal-scroll min-h-[220px]">
+        <div ref={terminalBodyRef} className="px-8 py-5 flex-1 min-h-0 overflow-y-auto font-mono text-xs space-y-2 select-text bg-white custom-terminal-scroll">
           {renderLogLines()}
-          <div ref={terminalBottomRef} />
         </div>
       </div>
 
@@ -119,7 +179,7 @@ export default function TerminalLog({
       {isFullscreen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-6 animate-in fade-in duration-150">
           <div className="bg-white rounded-3xl border border-slate-300 shadow-2xl w-full h-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="py-4 px-6 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+            <div className="shrink-0 pt-5 pb-4 px-8 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <i className="bi bi-terminal-fill text-blue-600 text-base" />
                 <h2 className="text-sm font-bold tracking-wider text-slate-900 uppercase">
@@ -131,6 +191,42 @@ export default function TerminalLog({
               </div>
 
               <div className="flex items-center gap-3">
+                {onProcess && (
+                  <button
+                    type="button"
+                    onClick={onProcess}
+                    disabled={isProcessing}
+                    className={cn(
+                      "text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs",
+                      isProcessing
+                        ? "bg-blue-100 text-blue-700 cursor-not-allowed opacity-80"
+                        : "bg-blue-600 hover:bg-blue-700 text-white active:scale-95"
+                    )}
+                  >
+                    <i className={cn("bi", isProcessing ? "bi-arrow-repeat animate-spin" : "bi-play-fill text-sm")} />
+                    <span>{isProcessing ? "Processing..." : processLabel}</span>
+                  </button>
+                )}
+                {viewResultsUrl && (
+                  isCompleted ? (
+                    <NavLink
+                      to={viewResultsUrl}
+                      className="text-xs font-bold px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                    >
+                      <span>View Results</span>
+                      <i className="bi bi-arrow-right text-xs" />
+                    </NavLink>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="text-xs font-bold px-3.5 py-1.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed flex items-center gap-1.5 opacity-60"
+                    >
+                      <span>View Results</span>
+                      <i className="bi bi-arrow-right text-xs" />
+                    </button>
+                  )
+                )}
                 {!readOnly && onClear && (
                   <button
                     type="button"
@@ -153,9 +249,8 @@ export default function TerminalLog({
               </div>
             </div>
 
-            <div className="p-6 flex-1 overflow-y-auto font-mono text-xs space-y-2 select-text bg-white custom-terminal-scroll">
+            <div ref={fullscreenBodyRef} className="px-8 py-5 flex-1 min-h-0 overflow-y-auto font-mono text-xs space-y-2.5 select-text bg-white custom-terminal-scroll">
               {renderLogLines()}
-              <div ref={terminalBottomRef} />
             </div>
           </div>
         </div>

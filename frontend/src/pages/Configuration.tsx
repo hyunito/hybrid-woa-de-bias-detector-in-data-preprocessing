@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../lib/utils";
+import { hasPrerequisitesForConfiguration, getStoredItem } from "../lib/storage";
 import BottomBar from "../components/BottomBar";
 
 interface ProtectedAttribute {
@@ -28,19 +29,9 @@ interface ScannedDataset {
 export default function Configuration() {
   const navigate = useNavigate();
 
-  // Strict step-completion guard: redirect back to dashboard if prerequisites not met
+  // Redirect back to dashboard if dataset or pipeline scripts are missing
   useEffect(() => {
-    const ds = sessionStorage.getItem("scanned_dataset");
-    const sc = sessionStorage.getItem("pipeline_scripts");
-    let hasSc = false;
-    try {
-      const parsed = JSON.parse(sc || "[]");
-      hasSc = Array.isArray(parsed) && parsed.length > 0;
-    } catch {
-      hasSc = false;
-    }
-
-    if (!ds || !hasSc) {
+    if (!hasPrerequisitesForConfiguration()) {
       navigate("/dashboard", { replace: true });
     }
   }, [navigate]);
@@ -48,13 +39,7 @@ export default function Configuration() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [scannedData] = useState<ScannedDataset | null>(() => {
-  try {
-      const saved = sessionStorage.getItem("scanned_dataset");
-      return saved && saved !== "undefined" ? JSON.parse(saved) : null;
-    } catch (e) {
-      console.warn("Failed to parse scanned_dataset from sessionStorage, resetting:", e);
-      return null;
-    }
+    return getStoredItem<ScannedDataset | null>("scanned_dataset", null);
   });
 
 
@@ -178,9 +163,10 @@ export default function Configuration() {
 
       // Navigate to Processing Monitor
       navigate("/processing");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Tracker setup error:", err);
-      setErrorMessage(err.message || "Could not connect to backend server.");
+      const message = err instanceof Error ? err.message : "Could not connect to backend server.";
+      setErrorMessage(message);
     } finally {
       setIsProcessing(false);
     }

@@ -44,7 +44,6 @@ if __name__ == "__main__":
         reload=True,
         reload_dirs=[
             os.path.join(_backend_dir, "routers"),
-            os.path.join(_backend_dir, "core"),
             os.path.join(_backend_dir, "engine"),
         ],
     )

@@ -1,4 +1,3 @@
-all_biases = []
 import numpy as np
 import math
 import random

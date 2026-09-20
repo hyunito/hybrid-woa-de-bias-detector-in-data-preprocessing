@@ -1,4 +1,3 @@
-all_biases = []
 import numpy as np
 from numpy.random import rand
 from numpy.random import choice

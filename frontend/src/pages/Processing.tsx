@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from "react";
-import { useParams, NavLink, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   ResponsiveContainer,
   LineChart,
@@ -11,7 +11,7 @@ import {
   Legend,
 } from "recharts";
 import { cn } from "../lib/utils";
-import BottomBar from "../components/BottomBar";
+import { hasPrerequisitesForConfiguration, hasConfiguredAudit } from "../lib/storage";
 import TerminalLog, { type TerminalLine } from "../components/TerminalLog";
 
 interface PipelineScript {
@@ -31,24 +31,13 @@ export default function Processing() {
   const { auditId: paramAuditId } = useParams();
   const navigate = useNavigate();
 
-  // Strict step-completion guard: redirect back if prerequisites not met
+  // Redirect back if preceding steps are not yet completed
   useEffect(() => {
-    const ds = sessionStorage.getItem("scanned_dataset");
-    const sc = sessionStorage.getItem("pipeline_scripts");
-    const cfg = sessionStorage.getItem("audit_config");
-    let hasSc = false;
-    try {
-      const parsed = JSON.parse(sc || "[]");
-      hasSc = Array.isArray(parsed) && parsed.length > 0;
-    } catch {
-      hasSc = false;
-    }
-
-    if (!ds || !hasSc) {
+    if (!hasPrerequisitesForConfiguration()) {
       navigate("/dashboard", { replace: true });
       return;
     }
-    if (!cfg) {
+    if (!hasConfiguredAudit()) {
       navigate("/configuration", { replace: true });
       return;
     }
@@ -84,14 +73,14 @@ export default function Processing() {
   // State
   const [activeScriptIndex, setActiveScriptIndex] = useState<number>(0);
   const [currentStage, setCurrentStage] = useState<
-    "connecting" | "pipeline" | "evaluating" | "completed" | "error"
-  >("connecting");
+    "ready" | "connecting" | "pipeline" | "evaluating" | "completed" | "error"
+  >("ready");
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
   const [terminalLogs, setTerminalLogs] = useState<TerminalLine[]>([
     {
       id: "init",
       stream: "info",
-      text: `[SYSTEM] Initializing audit session #${auditId}... Connecting to PROBA backend WebSocket.`,
+      text: `[SYSTEM] Audit session #${auditId} ready. Click 'Process' to execute pipeline ingestion and bias search.`,
     },
   ]);
   const [socketError, setSocketError] = useState<string | null>(null);
@@ -311,23 +300,46 @@ export default function Processing() {
           ]);
         }
       };
-    } catch (e: any) {
-      setSocketError(e.message || "Failed to initialize WebSocket client.");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to initialize WebSocket client.";
+      setSocketError(message);
       setCurrentStage("error");
     }
   };
 
-  useEffect(() => {
+  const handleStartProcess = () => {
+    if (currentStage === "connecting" || currentStage === "pipeline" || currentStage === "evaluating") {
+      return;
+    }
+    if (socketRef.current) {
+      socketRef.current.close();
+      socketRef.current = null;
+    }
+    setChartData([]);
+    setActiveScriptIndex(0);
+    setIsCompleted(false);
+    setElapsedSeconds(0);
+    setSocketError(null);
+    setTerminalLogs([
+      {
+        id: `start-${Date.now()}`,
+        stream: "info",
+        text: `[SYSTEM] Initializing audit session #${auditId}... Connecting to PROBA backend WebSocket.`,
+      },
+    ]);
     connectWebSocket();
+  };
+
+  useEffect(() => {
     return () => {
       if (socketRef.current) {
         socketRef.current.close();
       }
     };
-  }, [auditId]);
+  }, []);
 
   return (
-    <div className="flex flex-col h-full justify-between gap-6 max-w-7xl mx-auto w-full">
+    <div className="flex flex-col min-h-full justify-between gap-4 max-w-7xl mx-auto w-full pb-8">
       {/* Inline WebSocket Error Banner */}
       {socketError && (
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 px-6 flex items-center justify-between text-rose-800 text-sm shadow-sm animate-fade-in">
@@ -349,7 +361,7 @@ export default function Processing() {
       )}
 
       {/* Main Grid: Pipeline Flow (Top Left), Live Chart (Top Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-shrink-0">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-shrink-0">
         {/* Left Card: Pipeline Flow Diagram */}
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md p-6 flex flex-col justify-between overflow-hidden">
           <div>
@@ -386,18 +398,22 @@ export default function Processing() {
                 <span
                   className={cn(
                     "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                    currentStage === "pipeline"
+                    (currentStage === "pipeline" || currentStage === "connecting" || currentStage === "evaluating")
                       ? "bg-blue-100 text-blue-800 animate-pulse"
                       : isCompleted
-                      ? "bg-emerald-100 text-emerald-800"
-                      : "bg-slate-100 text-slate-600"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-100 text-slate-600"
                   )}
                 >
                   {currentStage === "pipeline"
                     ? "Processing..."
-                    : isCompleted
-                    ? "Completed"
-                    : "Pending"}
+                    : currentStage === "connecting"
+                      ? "Connecting..."
+                      : currentStage === "evaluating"
+                        ? "Evaluating..."
+                        : isCompleted
+                          ? "Completed"
+                          : "Ready"}
                 </span>
               </div>
             </div>
@@ -405,7 +421,7 @@ export default function Processing() {
             {/* Horizontal Flow Nodes with Sleek Slide Bar */}
             <div
               ref={pipelineScrollRef}
-              className="py-4 px-3.5 flex items-center justify-start gap-3 overflow-x-auto select-none pipeline-slidebar min-h-[110px]"
+              className="py-4 px-3.5 flex items-center justify-start gap-2 overflow-x-auto select-none pipeline-slidebar min-h-[110px]"
             >
               {pipelineScripts.length === 0 ? (
                 <div className="w-full py-5 flex flex-col items-center justify-center text-slate-400 text-xs gap-1.5 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
@@ -504,8 +520,8 @@ export default function Processing() {
                   (currentStage === "pipeline" || currentStage === "evaluating")
                     ? "bg-blue-50 border-blue-200 text-blue-800"
                     : isCompleted
-                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                    : "bg-slate-100 border-slate-200 text-slate-600"
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                      : "bg-slate-100 border-slate-200 text-slate-600"
                 )}
                 title="Elapsed Execution Time"
               >
@@ -525,7 +541,11 @@ export default function Processing() {
             {chartData.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs gap-2">
                 <i className="bi bi-graph-up text-3xl stroke-[1.5] text-slate-300" />
-                <span>Waiting for search agent evaluation stream...</span>
+                <span>
+                  {currentStage === "ready"
+                    ? "Click 'Process' to start search agent evaluation stream."
+                    : "Waiting for search agent evaluation stream..."}
+                </span>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -573,7 +593,7 @@ export default function Processing() {
                   />
                   <Line
                     type="monotone"
-                    name="Best Envelope"
+                    name="Highest Bias Found"
                     dataKey="best_fitness"
                     stroke="#10B981"
                     strokeWidth={2}
@@ -604,36 +624,17 @@ export default function Processing() {
       <TerminalLog
         logs={terminalLogs}
         onClear={() => setTerminalLogs([])}
+        onProcess={handleStartProcess}
+        isProcessing={currentStage === "connecting" || currentStage === "pipeline" || currentStage === "evaluating"}
+        processLabel={isCompleted ? "Re-process" : "Process"}
+        viewResultsUrl={`/results/${auditId}`}
+        isCompleted={isCompleted}
         title="TERMINAL LOG"
         subtitle="Live Execution Log"
-        className="flex-1 min-h-[260px]"
+        className="flex-1 min-h-[280px]"
       />
 
-      {/* Bottom Bar: Action Slot (Postgres status removed) */}
-      <BottomBar showDbStatus={false}>
-        <div className="flex items-center gap-4">
-          {!isCompleted ? (
-            <div className="flex items-center gap-2.5 text-xs text-slate-600 font-bold">
-              <i className="bi bi-arrow-repeat animate-spin text-blue-600 text-sm" />
-              <span>
-                {currentStage === "pipeline"
-                  ? "Preprocessing Ingestion Pipeline..."
-                  : currentStage === "evaluating"
-                  ? "Evaluating Bias Search..."
-                  : "Preparing Pipeline..."}
-              </span>
-            </div>
-          ) : (
-            <NavLink
-              to={`/results/${auditId}`}
-              className="flex items-center gap-2 text-sm font-bold text-emerald-600 hover:text-emerald-800 transition-colors group cursor-pointer"
-            >
-              <span>View Result</span>
-              <i className="bi bi-arrow-right text-base group-hover:translate-x-1 transition-transform" />
-            </NavLink>
-          )}
-        </div>
-      </BottomBar>
+
     </div>
   );
 }

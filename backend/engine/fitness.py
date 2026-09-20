@@ -55,6 +55,17 @@ def load_provenance_data(rows):
         
     _logs_cache = True
 
+def _load_records_from_json(path):
+    """Loads provenance records from JSON fallback file if database is unavailable."""
+    if os.path.exists(path):
+        print("Falling back to local JSON file instead")
+        with open(path, 'r', encoding='utf-8') as f:
+            records = json.load(f)
+            print(f"Loaded JSON from {path}")
+            return records
+    print(f"Fallback file {path} does not exist.")
+    return None
+
 def get_space_dimensions():
     rows = []
     path = "provenance_metadata.json"
@@ -78,25 +89,16 @@ def get_space_dimensions():
         if rows:
             records = rows[0][0]
         else:
-            print("No record found.")
-            print("Will fall back to JSON file instead")
-            if os.path.exists(path):
-                with open(path, 'r') as f:
-                    records = json.load(f)
-                    print(f"Loaded JSON from {path}")
-            else:
+            records = _load_records_from_json(path)
+            if records is None:
                 return
         cursor.close()
         connection.close()
 
     except psycopg2.OperationalError as e:
         print(f"Could not connect to database: {e}")
-        print("Will fall back to JSON file instead")
-        if os.path.exists(path):
-            with open(path, 'r') as f:
-                records = json.load(f)
-                print(f"Loaded JSON from {path}")
-        else:
+        records = _load_records_from_json(path)
+        if records is None:
             return
 
     load_provenance_data(records)

@@ -4,7 +4,7 @@ import json
 import time
 import asyncio
 import subprocess
-from typing import Dict, List
+from typing import Dict
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 
 from config import PIPELINE_DIR, BACKEND_DIR
@@ -208,7 +208,7 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
             env = {
                 **os.environ,
                 "PYTHONUNBUFFERED": "1",
-                "PYTHONPATH": f"{pipeline_dir};{PIPELINE_DIR};{BACKEND_DIR};{BACKEND_DIR};" + os.environ.get("PYTHONPATH", "")
+                "PYTHONPATH": f"{pipeline_dir};{PIPELINE_DIR};{BACKEND_DIR};" + os.environ.get("PYTHONPATH", "")
             }
 
             def run_single_process(target_script):

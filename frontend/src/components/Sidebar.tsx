@@ -1,10 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "../lib/utils";
+import { hasUploadedDataset, hasConfiguredScripts, hasConfiguredAudit } from "../lib/storage";
 
-// =========================================================================
-// SUB-STEPS CONFIGURATION (Audit Configuration, Processing Monitor, Results)
-// =========================================================================
 const STEPS = [
   {
     path: "/configuration",
@@ -26,9 +24,6 @@ const STEPS = [
   },
 ];
 
-// =========================================================================
-// BOTTOM NAVIGATION CONFIGURATION (Log History, Settings)
-// =========================================================================
 const BOTTOM_NAV = [
   {
     path: "/history",
@@ -42,62 +37,34 @@ const BOTTOM_NAV = [
   },
 ];
 
+function getUnlockedStatus() {
+  const configUnlocked = hasUploadedDataset() && hasConfiguredScripts();
+  const processingUnlocked = configUnlocked && hasConfiguredAudit();
+  const resultsUnlocked = processingUnlocked && Boolean(sessionStorage.getItem("audit_results"));
+  return {
+    configuration: configUnlocked,
+    processing: processingUnlocked,
+    results: resultsUnlocked,
+  };
+}
+
 export default function Sidebar() {
   const location = useLocation();
   const isDashboardActive = location.pathname.startsWith("/dashboard");
 
-  const [unlocked, setUnlocked] = useState({
-    configuration: false,
-    processing: false,
-    results: false,
-  });
-
-  const checkUnlocked = useCallback(() => {
-    try {
-      // Step 1 check: Dataset + Pipeline scripts uploaded
-      const dataset = sessionStorage.getItem("scanned_dataset");
-      const rawScripts = sessionStorage.getItem("pipeline_scripts");
-      let hasScripts = false;
-      try {
-        const parsed = JSON.parse(rawScripts || "[]");
-        hasScripts = Array.isArray(parsed) && parsed.length > 0;
-      } catch {
-        hasScripts = false;
-      }
-      const configUnlocked = !!dataset && hasScripts;
-
-      // Step 2 check: Audit configuration saved
-      const auditConfig = sessionStorage.getItem("audit_config");
-      const processingUnlocked = configUnlocked && !!auditConfig;
-
-      // Step 3 check: Audit executed & completed
-      const auditResults = sessionStorage.getItem("audit_results");
-      const resultsUnlocked = processingUnlocked && !!auditResults;
-
-      setUnlocked({
-        configuration: configUnlocked,
-        processing: processingUnlocked,
-        results: resultsUnlocked,
-      });
-    } catch {
-      setUnlocked({
-        configuration: false,
-        processing: false,
-        results: false,
-      });
-    }
-  }, []);
+  const [unlocked, setUnlocked] = useState(getUnlockedStatus);
 
   useEffect(() => {
-    checkUnlocked();
-    const handleStepChange = () => checkUnlocked();
+    const handleStepChange = () => setUnlocked(getUnlockedStatus());
     window.addEventListener("proba_step_change", handleStepChange);
     window.addEventListener("storage", handleStepChange);
     return () => {
       window.removeEventListener("proba_step_change", handleStepChange);
       window.removeEventListener("storage", handleStepChange);
     };
-  }, [location.pathname, checkUnlocked]);
+  }, []);
+
+
 
   return (
     <aside className="w-64 bg-white border-r border-slate-300 flex flex-col justify-between h-screen sticky top-0 select-none shadow-sm">
