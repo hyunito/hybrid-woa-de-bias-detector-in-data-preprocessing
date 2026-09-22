@@ -16,6 +16,8 @@ if _engine_dir not in sys.path:
 from routers.dashboard import router as dashboard_router
 from routers.configuration import router as configuration_router
 from routers.audit import router as audit_router
+from routers.history import router as history_router
+from routers.result import router as result_router
 from routers.session import router as session_router
 
 app = FastAPI(
@@ -30,10 +32,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register specialized domain routers
 app.include_router(dashboard_router)
 app.include_router(configuration_router)
 app.include_router(audit_router)
+app.include_router(history_router)
+app.include_router(result_router)
 app.include_router(session_router)
 
 if __name__ == "__main__":

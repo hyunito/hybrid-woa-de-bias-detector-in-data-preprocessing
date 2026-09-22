@@ -7,115 +7,23 @@ import subprocess
 from typing import Dict
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 
-from config import PIPELINE_DIR, BACKEND_DIR
+from config import PIPELINE_DIR, BACKEND_DIR, AUDITS_DIR, ACTIVE_AUDIT_RESULTS
 from engine.audit import get_fitness_score
 from engine.feedback import generate_mitigation_report
 
 router = APIRouter(tags=["Audit"])
 
-ACTIVE_AUDIT_RESULTS: Dict[str, dict] = {}
-
-
-def build_script_matchers(pipeline_scripts: list) -> list:
-    """
-    Dynamically generates detection patterns for any arbitrary number of uploaded scripts (1, 2, 5, 10+).
-    Matches ordinal indicators ('step 1', 'step 5', 'step five', '[1/5]'), file stems ('clean_nulls', 'impute'),
-    and explicit script filenames.
-    """
-    word_numbers = [
-        "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
-        "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
-        "eighteen", "nineteen", "twenty"
-    ]
-
-    total_scripts = len(pipeline_scripts)
-    matchers = []
-
-    for idx, script in enumerate(pipeline_scripts):
-        s_name = script.get("name", "").strip().lower()
-        stem = os.path.splitext(s_name)[0].lower()
-        stem_spaced = stem.replace("_", " ").replace("-", " ")
-
-        patterns = set()
-
-        # 1. Exact file name and stem
-        if s_name:
-            patterns.add(s_name)
-        if stem:
-            patterns.add(stem)
-            patterns.add(stem_spaced)
-
-        # 2. Ordinal number variants (step 1, step_1, step1, step #1, [1/5], [1])
-        step_num = idx + 1
-        patterns.add(f"step {step_num}")
-        patterns.add(f"step_{step_num}")
-        patterns.add(f"step-{step_num}")
-        patterns.add(f"step{step_num}")
-        patterns.add(f"step #{step_num}")
-        patterns.add(f"step: {step_num}")
-        patterns.add(f"[{step_num}/{total_scripts}]")
-        patterns.add(f"[{step_num}]")
-        patterns.add(f"stage {step_num}")
-        patterns.add(f"stage_{step_num}")
-
-        # 3. Word form numbers (step one, step two, ... step five, etc.)
-        if idx < len(word_numbers):
-            word = word_numbers[idx]
-            patterns.add(f"step {word}")
-            patterns.add(f"step_{word}")
-            patterns.add(f"stage {word}")
-
-        matchers.append({
-            "index": idx,
-            "name": script.get("name", ""),
-            "patterns": sorted(list(patterns), key=len, reverse=True)
-        })
-
-    return matchers
-
-
-def detect_script_step(line_lower: str, matchers: list, current_idx: int) -> int:
-    """
-    Checks if a stdout line signals a transition to any configured pipeline step.
-    Returns the new step index if detected, or current_idx.
-    """
-    for matcher in matchers:
-        for pattern in matcher["patterns"]:
-            if pattern in line_lower:
-                return matcher["index"]
-    return current_idx
-
-
-def is_pipeline_chained(first_script_path: str, pipeline_scripts: list) -> bool:
-    """
-    Checks if the entry script imports or references any subsequent uploaded scripts.
-    If so, running the entry script will orchestrate all stages in a single process.
-    If not, each script in pipeline_scripts is an independent script to run in order.
-    """
-    if len(pipeline_scripts) <= 1:
-        return True
-    if not os.path.exists(first_script_path):
-        return False
+def save_audit_to_storage(audit_data: dict) -> None:
+    """Persists completed audit report into the storage/audits directory."""
     try:
-        with open(first_script_path, "r", encoding="utf-8", errors="ignore") as f:
-            content = f.read().lower()
-        for s in pipeline_scripts[1:]:
-            s_name = s.get("name", "").lower()
-            stem = os.path.splitext(s_name)[0].lower()
-            if stem in content:
-                return True
-    except Exception:
-        pass
-    return False
-
-
-@router.get("/api/audit/results/{audit_id}")
-def get_audit_results(audit_id: str):
-    """Retrieves completed audit findings, provenance lineage, recommendations, and chart points."""
-    if audit_id in ACTIVE_AUDIT_RESULTS:
-        return ACTIVE_AUDIT_RESULTS[audit_id]
-    raise HTTPException(status_code=404, detail="Audit results not found")
-
+        os.makedirs(AUDITS_DIR, exist_ok=True)
+        audit_id = audit_data.get("audit_id") or f"AUD-{time.strftime('%Y%m%d-%H%M%S')}"
+        file_path = os.path.join(AUDITS_DIR, f"{audit_id}.json")
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(audit_data, f, indent=2)
+        print(f"[Storage] Successfully saved audit report to {file_path}")
+    except Exception as e:
+        print(f"[Storage] Failed to save audit report: {e}")
 
 @router.websocket("/ws/audit/{audit_id}")
 async def audit_websocket(websocket: WebSocket, audit_id: str):
@@ -155,9 +63,7 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
             return
 
         # Phase 1: Ingestion Pipeline Execution
-        matchers = build_script_matchers(pipeline_scripts)
         first_script_name = pipeline_scripts[0]["name"]
-        first_script_path = os.path.join(PIPELINE_DIR, first_script_name)
 
         await websocket.send_json({
             "type": "pipeline_start",
@@ -165,12 +71,9 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
             "active_script": first_script_name
         })
 
-        chained = is_pipeline_chained(first_script_path, pipeline_scripts)
-        scripts_to_execute = [pipeline_scripts[0]] if chained else pipeline_scripts
-
         loop = asyncio.get_running_loop()
 
-        for exec_idx, script_info in enumerate(scripts_to_execute):
+        for exec_idx, script_info in enumerate(pipeline_scripts):
             script_name = script_info["name"]
             script_path = os.path.join(PIPELINE_DIR, script_name)
 
@@ -194,11 +97,10 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                 "text": f"> Executing pipeline script from disk ({rel_path})"
             })
 
-            # Initial step indicator for this script
-            current_script_idx = exec_idx
+            # Announce active script step
             await websocket.send_json({
                 "type": "script_step",
-                "index": current_script_idx,
+                "index": exec_idx,
                 "name": script_name
             })
 
@@ -245,17 +147,6 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                 try:
                     line = await asyncio.wait_for(output_queue.get(), timeout=1.0)
                     last_output_time = time.time()
-                    line_lower = line.lower()
-
-                    # Dynamic step detection across all configured scripts
-                    new_idx = detect_script_step(line_lower, matchers, current_script_idx)
-                    if new_idx != current_script_idx and new_idx < len(pipeline_scripts):
-                        current_script_idx = new_idx
-                        await websocket.send_json({
-                            "type": "script_step",
-                            "index": current_script_idx,
-                            "name": pipeline_scripts[current_script_idx]["name"]
-                        })
 
                     await websocket.send_json({
                         "type": "terminal_log",
@@ -269,7 +160,7 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                         await websocket.send_json({
                             "type": "terminal_log",
                             "stream": "info",
-                            "text": f"> [PROBA] Processing dataset transformation... ({elapsed_s}s elapsed)"
+                            "text": f"> [PROBA] Executing {script_name}... ({elapsed_s}s elapsed)"
                         })
                         last_output_time = time.time()
 
@@ -288,6 +179,9 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                 })
                 return
 
+        await websocket.send_json({
+            "type": "pipeline_completed"
+        })
         await websocket.send_json({
             "type": "terminal_log",
             "stream": "info",
@@ -418,9 +312,20 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
 
         recommendations, script_rollups = generate_mitigation_report(filtered_biases)
 
+        created_at = time.strftime("%Y-%m-%d %H:%M")
+        highest_score = round(float(filtered_biases[0]["fitness_score"]), 4) if filtered_biases else 0.0
+        root_cause = (
+            recommendations[0].get("category") or recommendations[0].get("transformation_name")
+            if recommendations
+            else (filtered_biases[0].get("transformation_name") or filtered_biases[0].get("script_name") if filtered_biases else "Data Preprocessing")
+        )
+
         result_payload = {
             "audit_id": audit_id,
             "status": "completed",
+            "created_at": created_at,
+            "root_cause": root_cause,
+            "highest_bias_score": highest_score,
             "threshold": threshold,
             "total_ranked_findings": len(filtered_biases),
             "qualifying_recommendations": len(recommendations),
@@ -434,6 +339,7 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
         }
 
         ACTIVE_AUDIT_RESULTS[audit_id] = result_payload
+        save_audit_to_storage(result_payload)
 
         await websocket.send_json({
             "type": "completed",

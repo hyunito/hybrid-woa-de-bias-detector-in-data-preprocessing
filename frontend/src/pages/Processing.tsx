@@ -27,6 +27,15 @@ interface ChartPoint {
 
 
 
+function createAuditId(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `AUD-${year}${month}${day}-${rand}`;
+}
+
 export default function Processing() {
   const { auditId: paramAuditId } = useParams();
   const navigate = useNavigate();
@@ -44,12 +53,16 @@ export default function Processing() {
   }, [navigate]);
 
   // Audit ID setup
-  const [auditId] = useState<string>(() => {
-    return (
-      paramAuditId ||
-      sessionStorage.getItem("current_audit_id") ||
-      Math.random().toString(36).substring(2, 10)
-    );
+  const [auditId, setAuditId] = useState<string>(() => {
+    if (paramAuditId) return paramAuditId;
+    const existing = sessionStorage.getItem("current_audit_id");
+    const hasCompleted = sessionStorage.getItem("audit_results");
+    if (existing && !hasCompleted) {
+      return existing;
+    }
+    const freshId = createAuditId();
+    sessionStorage.setItem("current_audit_id", freshId);
+    return freshId;
   });
 
   useEffect(() => {
@@ -147,11 +160,11 @@ export default function Processing() {
 
 
   // Connect WebSocket
-  const connectWebSocket = () => {
+  const connectWebSocket = (targetAuditId: string = auditId) => {
     setSocketError(null);
     setCurrentStage("connecting");
 
-    const wsUrl = `ws://127.0.0.1:8000/ws/audit/${auditId}`;
+    const wsUrl = `ws://127.0.0.1:8000/ws/audit/${targetAuditId}`;
     console.log("[WebSocket] Connecting to:", wsUrl);
 
     try {
@@ -167,7 +180,7 @@ export default function Processing() {
           {
             id: `open-${Date.now()}`,
             stream: "info",
-            text: `[WEBSOCKET] Connected to ws://127.0.0.1:8000/ws/audit/${auditId}`,
+            text: `[WEBSOCKET] Connected to ws://127.0.0.1:8000/ws/audit/${targetAuditId}`,
           },
         ]);
       };
@@ -316,6 +329,15 @@ export default function Processing() {
       socketRef.current.close();
       socketRef.current = null;
     }
+
+    let activeAuditId = auditId;
+    if (isCompleted || sessionStorage.getItem("audit_results")) {
+      activeAuditId = createAuditId();
+      setAuditId(activeAuditId);
+      sessionStorage.setItem("current_audit_id", activeAuditId);
+      sessionStorage.removeItem("audit_results");
+    }
+
     setChartData([]);
     setActiveScriptIndex(0);
     setIsCompleted(false);
@@ -325,10 +347,10 @@ export default function Processing() {
       {
         id: `start-${Date.now()}`,
         stream: "info",
-        text: `[SYSTEM] Initializing audit session #${auditId}... Connecting to PROBA backend WebSocket.`,
+        text: `[SYSTEM] Initializing audit session #${activeAuditId}... Connecting to PROBA backend WebSocket.`,
       },
     ]);
-    connectWebSocket();
+    connectWebSocket(activeAuditId);
   };
 
   useEffect(() => {
@@ -353,7 +375,7 @@ export default function Processing() {
           </div>
           <button
             type="button"
-            onClick={connectWebSocket}
+            onClick={() => connectWebSocket()}
             className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
           >
             Retry
@@ -497,7 +519,6 @@ export default function Processing() {
 
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
             <span>Session ID: <strong className="font-mono text-slate-800">#{auditId}</strong></span>
-            <span>Chaining: <strong className="text-slate-700">Sequential Execution</strong></span>
           </div>
         </div>
 

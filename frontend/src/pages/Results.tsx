@@ -75,14 +75,14 @@ export default function Results() {
   const { auditId: paramAuditId } = useParams();
   const navigate = useNavigate();
 
-  // Stable audit ID initialized once
-  const [auditId] = useState<string>(() => {
+  // Derived audit ID from URL parameter or active session storage
+  const auditId = useMemo(() => {
     return (
       paramAuditId ||
       sessionStorage.getItem("current_audit_id") ||
-      "audit-" + Date.now().toString(36)
+      "current-audit"
     );
-  });
+  }, [paramAuditId]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -108,8 +108,11 @@ export default function Results() {
     }
   };
 
-  // Redirect back if prerequisite data is missing
+  // Redirect back if prerequisite data is missing (bypass when viewing historical report by paramAuditId)
   useEffect(() => {
+    if (paramAuditId) {
+      return;
+    }
     if (!hasPrerequisitesForConfiguration()) {
       navigate("/dashboard", { replace: true });
       return;
@@ -118,7 +121,7 @@ export default function Results() {
       navigate("/configuration", { replace: true });
       return;
     }
-    if (!sessionStorage.getItem("audit_results") && !paramAuditId) {
+    if (!sessionStorage.getItem("audit_results")) {
       navigate("/processing", { replace: true });
       return;
     }
@@ -132,44 +135,42 @@ export default function Results() {
       setIsLoading(true);
       setErrorMessage(null);
 
-      // 1. Try loading cached chart data
-      try {
-        const cachedChart = sessionStorage.getItem("chart_data");
-        if (cachedChart) {
-          const parsed = JSON.parse(cachedChart);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setChartData(parsed);
-          }
-        }
-      } catch (e) {
-        console.warn("Could not parse cached terminal logs or chart data:", e);
-      }
+      const targetAuditId = paramAuditId || auditId;
 
-      // 2. Try loading cached audit results
+      // 1. Check session cache only when inspecting the current session without a specific paramAuditId
       let foundInSession = false;
-      try {
-        const cachedResults = sessionStorage.getItem("audit_results");
-        if (cachedResults) {
-          const res = JSON.parse(cachedResults);
-          if (res) {
-            if (Array.isArray(res.ranked_biases)) setRankedBiases(res.ranked_biases);
-            if (Array.isArray(res.recommendations)) setRecommendations(res.recommendations);
-            if (Array.isArray(res.script_rollups)) setScriptRollups(res.script_rollups);
-            if (Array.isArray(res.provenance_records)) setProvenanceRecords(res.provenance_records);
-            if (Array.isArray(res.chart_points) && res.chart_points.length > 0) {
-              setChartData(res.chart_points);
+      if (!paramAuditId) {
+        try {
+          const cachedChart = sessionStorage.getItem("chart_data");
+          if (cachedChart) {
+            const parsed = JSON.parse(cachedChart);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setChartData(parsed);
             }
-            if (typeof res.threshold === "number") setThreshold(res.threshold);
-            foundInSession = true;
           }
+          const cachedResults = sessionStorage.getItem("audit_results");
+          if (cachedResults) {
+            const res = JSON.parse(cachedResults);
+            if (res) {
+              if (Array.isArray(res.ranked_biases)) setRankedBiases(res.ranked_biases);
+              if (Array.isArray(res.recommendations)) setRecommendations(res.recommendations);
+              if (Array.isArray(res.script_rollups)) setScriptRollups(res.script_rollups);
+              if (Array.isArray(res.provenance_records)) setProvenanceRecords(res.provenance_records);
+              if (Array.isArray(res.chart_points) && res.chart_points.length > 0) {
+                setChartData(res.chart_points);
+              }
+              if (typeof res.threshold === "number") setThreshold(res.threshold);
+              foundInSession = true;
+            }
+          }
+        } catch (e) {
+          console.warn("Could not parse cached session results:", e);
         }
-      } catch (e) {
-        console.warn("Could not parse cached audit_results:", e);
       }
 
-      // 3. If missing from session or paramAuditId specified, fetch from API
+      // 2. Fetch from backend API (always for historical audits or when missing from session)
       try {
-        const response = await fetch(`http://127.0.0.1:8000/api/audit/results/${auditId}`);
+        const response = await fetch(`http://127.0.0.1:8000/api/results/${targetAuditId}`);
         if (response.ok) {
           const data = await response.json();
           if (isMounted && data) {
@@ -203,7 +204,7 @@ export default function Results() {
     return () => {
       isMounted = false;
     };
-  }, [auditId]);
+  }, [auditId, paramAuditId]);
 
   // Selected Bias Finding
   const currentBias = rankedBiases[selectedBiasIndex] || rankedBiases[0] || null;
@@ -261,35 +262,8 @@ export default function Results() {
     setTimeout(() => setCopiedId(false), 2000);
   };
 
-  // Download Report as JSON
-  const handleDownloadReport = () => {
-    const reportPayload = {
-      audit_id: auditId,
-      exported_at: new Date().toISOString(),
-      threshold,
-      total_ranked_findings: rankedBiases.length,
-      qualifying_recommendations: recommendations.length,
-      ranked_biases: rankedBiases,
-      recommendations,
-      script_rollups: scriptRollups,
-      provenance_records: provenanceRecords,
-      chart_points: chartData,
-    };
+  
 
-    const blob = new Blob([JSON.stringify(reportPayload, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `proba_audit_report_${auditId}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  // Format Delta rows
   const formatDelta = (before?: number, after?: number) => {
     if (typeof before !== "number" || typeof after !== "number") return "N/A";
     const delta = after - before;
@@ -349,15 +323,6 @@ export default function Results() {
               <i className={cn("bi", copiedId ? "bi-check2 text-emerald-600 font-bold" : "bi-clipboard")} />
             </button>
           </div>
-
-          <button
-            type="button"
-            onClick={handleDownloadReport}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-          >
-            <i className="bi bi-download text-xs" />
-            <span>Export JSON</span>
-          </button>
         </div>
       </div>
 

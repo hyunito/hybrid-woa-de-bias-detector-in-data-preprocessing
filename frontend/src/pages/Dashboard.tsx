@@ -76,6 +76,8 @@ export default function Dashboard() {
       console.log("[Dashboard] Streamed dataset to disk & scanned successfully:", data);
       setScanResult(data);
 
+      sessionStorage.removeItem("current_audit_id");
+      sessionStorage.removeItem("audit_results");
       sessionStorage.setItem("scanned_dataset", JSON.stringify(data));
       window.dispatchEvent(new Event("proba_step_change"));
     } catch (err: unknown) {

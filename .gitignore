@@ -6,6 +6,8 @@ __pycache__/
 *.json
 !backend/engine/rules/*.json
 !frontend/*.json
+!storage/**/*.json
+!storage/*.json
 *.txt
 *.docx
 experiments/inputs_for_ui
