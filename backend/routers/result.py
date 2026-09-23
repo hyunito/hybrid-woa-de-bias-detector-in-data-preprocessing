@@ -8,6 +8,7 @@ router = APIRouter(tags=["Results"])
 
 
 @router.get("/api/results/{audit_id}")
+@router.get("/api/audit/results/{audit_id}")
 def get_audit_results(audit_id: str):
     """Retrieves completed audit findings from memory or persistent storage."""
     if audit_id in ACTIVE_AUDIT_RESULTS:

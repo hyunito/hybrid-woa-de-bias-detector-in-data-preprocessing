@@ -38,7 +38,6 @@ export default function BottomBar({
         </div>
       )}
 
-      {/* Dynamic Action Buttons Slot */}
       {children && (
         <div className={cn(showDbStatus ? "border-l border-slate-300 pl-8" : "w-full flex items-center justify-between")}>
           {children}

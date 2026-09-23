@@ -27,7 +27,11 @@ class ProvenanceMetadataTracker:
         """
         self.connection = None
         self.cursor = None
-        load_dotenv()
+        
+        backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        env_path = os.path.join(backend_dir, ".env")
+        load_dotenv(env_path)
+    
         try:
             self.connection = psycopg2.connect(
                 dbname = os.getenv('DB_NAME'),
@@ -224,17 +228,26 @@ class ProvenanceMetadataTracker:
         Stores metadata as a JSON object internally.
         """
         self.metadata_records.append(record)
-        print(f"Generated Provenance Metadata for: {record['transformation_name']}")
+        script_name = record.get("script_name", "")
+        transform_name = record.get("transformation_name", "")
+        if script_name:
+            print(f"> [PROBA_STEP] {script_name}", flush=True)
+        print(f"Generated Provenance Metadata for: {transform_name}", flush=True)
 
-    def export_to_json(self, filepath="provenance_metadata.json"):
+    def export_to_json(self, filepath=None):
         """
         Exports the tracked metadata records to a JSON file.
+        Defaults to exporting to backend/storage/provenance_metadata.json
         """
+        if filepath is None:
+            backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+            filepath = os.path.join(backend_dir, "storage", "provenance_metadata.json")
+
         directory = os.path.dirname(filepath)
         if directory and not os.path.exists(directory):
-            os.makedirs(directory)
+            os.makedirs(directory, exist_ok=True)
             
-        with open(filepath, 'w') as f:
+        with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(self.metadata_records, f, indent=4)
         print(f"Successfully exported {len(self.metadata_records)} provenance records to {filepath}")
     

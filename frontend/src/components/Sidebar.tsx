@@ -136,10 +136,7 @@ export default function Sidebar() {
                       key={step.path}
                       className="flex items-center group relative cursor-default select-none pointer-events-none"
                     >
-                      {/* Horizontal Branch Line */}
                       <div className="absolute left-[18px] w-4 h-[2px] bg-[#64748B] -z-0" />
-
-                      {/* Inner Pill: icon visible, text 50% opacity, no lock icon, no cursor-not-allowed */}
                       <div className="ml-8 flex items-center py-1.5 px-3 rounded-lg">
                         <div className="flex items-center justify-center text-[#1E293B]">
                           <i className={cn(step.icon)} />

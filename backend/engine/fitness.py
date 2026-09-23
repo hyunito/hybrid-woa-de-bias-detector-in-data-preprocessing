@@ -68,8 +68,20 @@ def _load_records_from_json(path):
 
 def get_space_dimensions():
     rows = []
-    path = "provenance_metadata.json"
-    load_dotenv()
+    backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    storage_path = os.path.join(backend_dir, "storage", "provenance_metadata.json")
+    candidate_paths = [
+        storage_path,
+        os.path.join(backend_dir, "provenance_metadata.json"),
+        os.path.abspath(os.path.join(backend_dir, "..", "provenance_metadata.json")),
+        "provenance_metadata.json"
+    ]
+    path = next((p for p in candidate_paths if os.path.exists(p)), storage_path)
+    env_file = os.path.join(backend_dir, ".env")
+    if os.path.exists(env_file):
+        load_dotenv(env_file)
+    else:
+        load_dotenv()
     try:
         connection = psycopg2.connect(
             dbname = os.getenv('DB_NAME'),

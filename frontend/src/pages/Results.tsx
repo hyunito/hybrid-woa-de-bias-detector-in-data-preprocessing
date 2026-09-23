@@ -262,7 +262,7 @@ export default function Results() {
     setTimeout(() => setCopiedId(false), 2000);
   };
 
-  
+
 
   const formatDelta = (before?: number, after?: number) => {
     if (typeof before !== "number" || typeof after !== "number") return "N/A";
@@ -541,7 +541,7 @@ export default function Results() {
                 </div>
                 <div>
                   <h2 className="text-sm font-bold tracking-tight text-[#0F1B2B] uppercase">
-                    BIAS SCORE VS. ITERATIONS
+                    BIAS SCORES
                   </h2>
                   <span className="text-[11px] text-slate-500 font-medium">
                     Convergence trajectory and search fitness evaluation
@@ -567,9 +567,9 @@ export default function Results() {
                       tickLine={false}
                       axisLine={{ stroke: "#E2E8F0" }}
                       label={{
-                        value: "Iterations / Discoveries",
+                        value: "Unique Bias Score",
                         position: "insideBottomRight",
-                        offset: -5,
+                        offset: -3,
                         fontSize: 9,
                         fill: "#94A3B8",
                       }}

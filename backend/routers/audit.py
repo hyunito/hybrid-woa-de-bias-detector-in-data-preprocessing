@@ -4,8 +4,7 @@ import json
 import time
 import asyncio
 import subprocess
-from typing import Dict
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from config import PIPELINE_DIR, BACKEND_DIR, AUDITS_DIR, ACTIVE_AUDIT_RESULTS
 from engine.audit import get_fitness_score
@@ -40,7 +39,7 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
     active_process = None
 
     try:
-        # 1. Read pipeline configuration
+        
         config_path = os.path.join(PIPELINE_DIR, "tracker_config.json")
         pipeline_scripts = []
 
@@ -49,7 +48,6 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                 saved_cfg = json.load(f)
                 pipeline_scripts = saved_cfg.get("pipeline_scripts", [])
 
-        # Strict check: Never run without configured scripts
         if not pipeline_scripts:
             await websocket.send_json({
                 "type": "terminal_log",
@@ -72,8 +70,14 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
         })
 
         loop = asyncio.get_running_loop()
+        executed_step_indices = set()
+        current_script_idx = 0
 
         for exec_idx, script_info in enumerate(pipeline_scripts):
+            
+            if exec_idx in executed_step_indices and exec_idx > 0:
+                continue
+
             script_name = script_info["name"]
             script_path = os.path.join(PIPELINE_DIR, script_name)
 
@@ -98,6 +102,8 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
             })
 
             # Announce active script step
+            current_script_idx = exec_idx
+            executed_step_indices.add(exec_idx)
             await websocket.send_json({
                 "type": "script_step",
                 "index": exec_idx,
@@ -148,6 +154,21 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                     line = await asyncio.wait_for(output_queue.get(), timeout=1.0)
                     last_output_time = time.time()
 
+                    # Dynamic step detection for chained and modular script execution
+                    if "> [PROBA_STEP] " in line:
+                        active_script_name = line.split("> [PROBA_STEP] ")[-1].strip()
+                        for p_idx, p_script in enumerate(pipeline_scripts):
+                            if p_script.get("name") == active_script_name:
+                                if p_idx != current_script_idx:
+                                    current_script_idx = p_idx
+                                    executed_step_indices.add(p_idx)
+                                    await websocket.send_json({
+                                        "type": "script_step",
+                                        "index": current_script_idx,
+                                        "name": active_script_name
+                                    })
+                                break
+
                     await websocket.send_json({
                         "type": "terminal_log",
                         "stream": "stdout",
@@ -157,10 +178,11 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                     # If process is running without log output for > 4 seconds, pulse progress heartbeat
                     if not subp_task.done() and (time.time() - last_output_time > 4.0):
                         elapsed_s = int(time.time() - proc_start_time)
+                        active_name = pipeline_scripts[current_script_idx]["name"] if current_script_idx < len(pipeline_scripts) else script_name
                         await websocket.send_json({
                             "type": "terminal_log",
                             "stream": "info",
-                            "text": f"> [PROBA] Executing {script_name}... ({elapsed_s}s elapsed)"
+                            "text": f"> [PROBA] Executing {active_name}... ({elapsed_s}s elapsed)"
                         })
                         last_output_time = time.time()
 
@@ -187,19 +209,9 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
             "stream": "info",
             "text": "> Pipeline preprocessing completed (Exit Code: 0)"
         })
-
+        found_prov = os.path.join(BACKEND_DIR, "storage", "provenance_metadata.json")
+        
         # Check for Provenance Metadata JSON exported by the executed script(s)
-        prov_paths = [
-            os.path.join(BACKEND_DIR, "provenance_metadata.json"),
-            os.path.abspath(os.path.join(BACKEND_DIR, "..", "provenance_metadata.json")),
-            os.path.join(PIPELINE_DIR, "provenance_metadata.json")
-        ]
-        found_prov = None
-        for p in prov_paths:
-            if os.path.exists(p):
-                found_prov = p
-                break
-
         if not found_prov:
             err_msg = "No provenance_metadata.json was generated. Ensure your preprocessing functions are tracked with @tracker.track."
             await websocket.send_json({

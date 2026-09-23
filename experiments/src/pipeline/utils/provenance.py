@@ -27,7 +27,22 @@ class ProvenanceMetadataTracker:
         """
         self.connection = None
         self.cursor = None
-        load_dotenv()
+        # Locate .env by searching current directory, backend directory, and project root
+        env_candidates = [
+            os.path.abspath(".env"),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".env")),
+            os.path.abspath(os.path.join(os.getcwd(), ".env")),
+            os.path.abspath(os.path.join(os.getcwd(), "..", ".env")),
+            os.path.abspath(os.path.join(os.getcwd(), "..", "..", ".env"))
+        ]
+        for ep in env_candidates:
+            if os.path.exists(ep):
+                load_dotenv(ep)
+                break
+        else:
+            load_dotenv()
         try:
             self.connection = psycopg2.connect(
                 dbname = os.getenv('DB_NAME'),
@@ -224,7 +239,11 @@ class ProvenanceMetadataTracker:
         Stores metadata as a JSON object internally.
         """
         self.metadata_records.append(record)
-        print(f"Generated Provenance Metadata for: {record['transformation_name']}")
+        script_name = record.get("script_name", "")
+        transform_name = record.get("transformation_name", "")
+        if script_name:
+            print(f"> [PROBA_STEP] {script_name}", flush=True)
+        print(f"Generated Provenance Metadata for: {transform_name}", flush=True)
 
     def export_to_json(self, filepath="provenance_metadata.json"):
         """

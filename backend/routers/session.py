@@ -60,6 +60,7 @@ def reset_session():
 
     # 2. Purge exported provenance metadata
     for p in [
+        os.path.join(BACKEND_DIR, "storage", "provenance_metadata.json"),
         os.path.join(BACKEND_DIR, "provenance_metadata.json"),
         os.path.abspath(os.path.join(BACKEND_DIR, "..", "provenance_metadata.json")),
         os.path.join(PIPELINE_DIR, "provenance_metadata.json")

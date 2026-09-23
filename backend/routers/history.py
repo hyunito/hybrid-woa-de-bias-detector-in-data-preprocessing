@@ -8,6 +8,7 @@ from config import AUDITS_DIR, ACTIVE_AUDIT_RESULTS
 router = APIRouter(tags=["History"])
 
 @router.get("/api/history")
+@router.get("/api/audit/history")
 def get_audit_history():
     """Returns summary list of all past audits stored in the audits storage directory."""
     history = []
@@ -65,6 +66,7 @@ def get_audit_history():
 
 
 @router.delete("/api/history/{audit_id}")
+@router.delete("/api/audit/history/{audit_id}")
 def delete_audit_history(audit_id: str):
     """Deletes a specific audit record from storage and cache."""
     if audit_id in ACTIVE_AUDIT_RESULTS:

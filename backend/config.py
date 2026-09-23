@@ -10,7 +10,6 @@ AUDITS_DIR = os.path.abspath(os.path.join(STORAGE_DIR, "audits"))
 os.makedirs(PIPELINE_DIR, exist_ok=True)
 os.makedirs(AUDITS_DIR, exist_ok=True)
 
-# 1 MB chunk buffer for streaming file uploads to disk
 CHUNK_SIZE = 1024 * 1024
 
 SESSION_REGISTRY: Dict[str, Dict[str, Set[str]]] = {}

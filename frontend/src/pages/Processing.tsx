@@ -477,7 +477,6 @@ export default function Processing() {
                           {idx + 1}
                         </span>
 
-                        {/* Icon */}
                         <i
                           className={cn(
                             "bi text-2xl mb-1.5",
