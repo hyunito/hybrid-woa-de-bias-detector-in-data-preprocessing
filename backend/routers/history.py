@@ -2,15 +2,19 @@ import os
 import json
 import time
 from fastapi import APIRouter, HTTPException
-
 from config import AUDITS_DIR, ACTIVE_AUDIT_RESULTS
 
 router = APIRouter(tags=["History"])
 
+
 @router.get("/api/history")
-@router.get("/api/audit/history")
 def get_audit_history():
-    """Returns summary list of all past audits stored in the audits storage directory."""
+    """
+    Scans the audits storage directory (backend/storage/audits/) and returns
+    a summarized list of all historical audit runs sorted newest first.
+
+    :return: List of summarized audit objects suitable for table rendering.
+    """
     history = []
     if not os.path.exists(AUDITS_DIR):
         return history
@@ -60,15 +64,18 @@ def get_audit_history():
         except Exception as err:
             print(f"[Storage] Error reading audit file {filename}: {err}")
 
-    # Sort newest first
     history.sort(key=lambda x: x.get("dateTime", ""), reverse=True)
     return history
 
 
 @router.delete("/api/history/{audit_id}")
-@router.delete("/api/audit/history/{audit_id}")
 def delete_audit_history(audit_id: str):
-    """Deletes a specific audit record from storage and cache."""
+    """
+    Permanently deletes a specific historical audit report from disk and active cache.
+
+    :param audit_id: The identifier of the audit report to remove.
+    :return: Confirmation dictionary with deleted audit_id.
+    """
     if audit_id in ACTIVE_AUDIT_RESULTS:
         del ACTIVE_AUDIT_RESULTS[audit_id]
 

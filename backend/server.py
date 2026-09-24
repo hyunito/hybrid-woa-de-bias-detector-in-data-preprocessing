@@ -17,7 +17,7 @@ from routers.configuration import router as configuration_router
 from routers.audit import router as audit_router
 from routers.history import router as history_router
 from routers.result import router as result_router
-from routers.session import router as session_router
+from routers.settings import router as settings_router
 
 app = FastAPI(
     title="PROBA - Provenance-based Bias Auditor API"
@@ -36,7 +36,7 @@ app.include_router(configuration_router)
 app.include_router(audit_router)
 app.include_router(history_router)
 app.include_router(result_router)
-app.include_router(session_router)
+app.include_router(settings_router)
 
 if __name__ == "__main__":
     uvicorn.run(

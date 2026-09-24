@@ -6,23 +6,12 @@ import asyncio
 import subprocess
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from config import PIPELINE_DIR, BACKEND_DIR, AUDITS_DIR, ACTIVE_AUDIT_RESULTS
+from config import PIPELINE_DIR, BACKEND_DIR
 from engine.audit import get_fitness_score
-from engine.feedback import generate_mitigation_report
+from engine.hybrid_woa import WOAAuditor
+from routers.result import save_audit_result
 
 router = APIRouter(tags=["Audit"])
-
-def save_audit_to_storage(audit_data: dict) -> None:
-    """Persists completed audit report into the storage/audits directory."""
-    try:
-        os.makedirs(AUDITS_DIR, exist_ok=True)
-        audit_id = audit_data.get("audit_id") or f"AUD-{time.strftime('%Y%m%d-%H%M%S')}"
-        file_path = os.path.join(AUDITS_DIR, f"{audit_id}.json")
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(audit_data, f, indent=2)
-        print(f"[Storage] Successfully saved audit report to {file_path}")
-    except Exception as e:
-        print(f"[Storage] Failed to save audit report: {e}")
 
 @router.websocket("/ws/audit/{audit_id}")
 async def audit_websocket(websocket: WebSocket, audit_id: str):
@@ -207,7 +196,7 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
         await websocket.send_json({
             "type": "terminal_log",
             "stream": "info",
-            "text": "> Pipeline preprocessing completed (Exit Code: 0)"
+            "text": "> Pipeline preprocessing completed"
         })
         found_prov = os.path.join(BACKEND_DIR, "storage", "provenance_metadata.json")
         
@@ -252,18 +241,15 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
             "type": "pipeline_completed",
             "message": "All pipeline transformations tracked successfully."
         })
-
-        # Small pause before search
         await asyncio.sleep(0.5)
 
         # Phase 2: WOA-DE Hybrid Search
         await websocket.send_json({
             "type": "audit_start",
-            "message": "Starting Metaheuristic Bias Scouting & Exploitation..."
+            "message": "Starting PROBA..."
         })
 
-        import hybrid_woa
-        auditor = hybrid_woa.WOAAuditor(metadata_logs=prov_records, num_whales=20, max_iter=10)
+        auditor = WOAAuditor(metadata_logs=prov_records, num_whales=20, max_iter=10)
 
         point_queue = asyncio.Queue()
 
@@ -322,43 +308,22 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
             if bias.get("fitness_score", 0.0) > threshold:
                 filtered_biases.append(bias)
 
-        recommendations, script_rollups = generate_mitigation_report(filtered_biases)
-
-        created_at = time.strftime("%Y-%m-%d %H:%M")
-        highest_score = round(float(filtered_biases[0]["fitness_score"]), 4) if filtered_biases else 0.0
-        root_cause = (
-            recommendations[0].get("category") or recommendations[0].get("transformation_name")
-            if recommendations
-            else (filtered_biases[0].get("transformation_name") or filtered_biases[0].get("script_name") if filtered_biases else "Data Preprocessing")
-        )
-
-        result_payload = {
-            "audit_id": audit_id,
-            "status": "completed",
-            "created_at": created_at,
-            "root_cause": root_cause,
-            "highest_bias_score": highest_score,
-            "threshold": threshold,
-            "total_ranked_findings": len(filtered_biases),
-            "qualifying_recommendations": len(recommendations),
-            "results": {
-                "ranked_biases": filtered_biases,
-                "recommendations": recommendations,
-                "script_rollups": script_rollups,
-                "provenance_records": prov_records,
-                "chart_points": chart_points_history
-            }
+        raw_results = {
+            "ranked_biases": filtered_biases,
+            "provenance_records": prov_records,
+            "chart_points": chart_points_history
         }
 
-        ACTIVE_AUDIT_RESULTS[audit_id] = result_payload
-        save_audit_to_storage(result_payload)
+        # Hand off findings to Results domain to compile mitigation strategies and persist
+        final_record = save_audit_result(audit_id, raw_results, threshold)
 
+        # Notify Processing.tsx that audit execution has completed
         await websocket.send_json({
             "type": "completed",
             "audit_id": audit_id,
-            "total_ranked_findings": len(filtered_biases),
-            "qualifying_recommendations": len(recommendations),
-            "results": result_payload["results"]
+            "total_ranked_findings": final_record["total_ranked_findings"],
+            "qualifying_recommendations": final_record["qualifying_recommendations"],
+            "results": final_record["results"]
         })
 
         print(f"[WebSocket] Audit {audit_id} fully completed and emitted.")

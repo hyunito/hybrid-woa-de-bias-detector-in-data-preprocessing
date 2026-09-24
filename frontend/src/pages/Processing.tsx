@@ -225,7 +225,7 @@ export default function Processing() {
               {
                 id: `audit-start-${Date.now()}`,
                 stream: "info",
-                text: "> [AUDIT] Starting metaheuristic bias search...",
+                text: "> [AUDIT] Starting bias search...",
               },
             ]);
           } else if (msg.type === "chart_point") {
@@ -260,7 +260,7 @@ export default function Processing() {
               {
                 id: `done-${Date.now()}`,
                 stream: "info",
-                text: `[AUDIT COMPLETED] Identified ${msg.total_ranked_findings || 0} candidate subgroups, generated ${msg.qualifying_recommendations || 0} actionable mitigation recommendations.`,
+                text: `[AUDIT COMPLETED]`,
               },
               {
                 id: `nav-${Date.now()}`,

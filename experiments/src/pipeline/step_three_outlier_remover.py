@@ -13,8 +13,6 @@ def num_outlier(df):
     lower_bound = Q1 - 1.5 * IQR
     upper_bound = Q3 + 1.5 * IQR
 
-    print(df['income'].dtype)
-
     df = df_cleaned[(df_cleaned['age'] >= lower_bound) & (df_cleaned['age'] <= upper_bound)]
     df = df_cleaned[df_cleaned['hours-per-week'] >= 0]
     

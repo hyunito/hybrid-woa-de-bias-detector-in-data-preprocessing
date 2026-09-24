@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import BottomBar from "../components/BottomBar";
 
@@ -21,14 +21,7 @@ interface SettingsState {
   biasThreshold: number;
 }
 
-const DEFAULT_SETTINGS: SettingsState = {
-  dbHost: "localhost",
-  dbPort: "5432",
-  dbName: "bias_audit_db",
-  dbUser: "postgres",
-  dbPass: "password123",
-  showPassword: false,
-
+const DEFAULT_ALGO_SETTINGS = {
   searchingAgents: 30,
   maxIterations: 500,
 
@@ -42,17 +35,94 @@ const DEFAULT_SETTINGS: SettingsState = {
 
 export default function Settings() {
   const navigate = useNavigate();
-  const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<SettingsState>({
+    dbHost: "",
+    dbPort: "5432",
+    dbName: "",
+    dbUser: "",
+    dbPass: "",
+    showPassword: false,
+    ...DEFAULT_ALGO_SETTINGS,
+  });
+
+  const [isLoadingDb, setIsLoadingDb] = useState(true);
+  const [isDbConnected, setIsDbConnected] = useState<boolean | null>(null);
+  const [dbError, setDbError] = useState<string | null>(null);
+  const [isSavingDb, setIsSavingDb] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
   const [restartSuccess, setRestartSuccess] = useState(false);
+
+  // Load database configuration from backend .env
+  useEffect(() => {
+    let isMounted = true;
+    const fetchDbSettings = async () => {
+      setIsLoadingDb(true);
+      try {
+        const res = await fetch("http://127.0.0.1:8000/api/settings/database");
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            setSettings((prev) => ({
+              ...prev,
+              dbHost: data.db_host ?? "",
+              dbPort: data.db_port ? String(data.db_port) : "5432",
+              dbName: data.db_name ?? "",
+              dbUser: data.db_user ?? "",
+              dbPass: data.db_password ?? "",
+            }));
+            setIsDbConnected(Boolean(data.is_connected));
+            setDbError(data.connection_error || null);
+          }
+        } else {
+          if (isMounted) {
+            setIsDbConnected(false);
+            setDbError("Unable to retrieve database configuration.");
+          }
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          setIsDbConnected(false);
+          setDbError(err.message || "Failed to reach backend server.");
+        }
+      } finally {
+        if (isMounted) setIsLoadingDb(false);
+      }
+    };
+
+    fetchDbSettings();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const updateField = <K extends keyof SettingsState>(field: K, value: SettingsState[K]) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleReset = () => {
-    setSettings(DEFAULT_SETTINGS);
+  const handleReset = async () => {
+    setSettings((prev) => ({
+      ...prev,
+      ...DEFAULT_ALGO_SETTINGS,
+    }));
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/settings/database");
+      if (res.ok) {
+        const data = await res.json();
+        setSettings((prev) => ({
+          ...prev,
+          dbHost: data.db_host ?? "",
+          dbPort: data.db_port ? String(data.db_port) : "5432",
+          dbName: data.db_name ?? "",
+          dbUser: data.db_user ?? "",
+          dbPass: data.db_password ?? "",
+        }));
+        setIsDbConnected(Boolean(data.is_connected));
+        setDbError(data.connection_error || null);
+      }
+    } catch {
+      // ignore
+    }
   };
 
   const handleRestartSession = async () => {
@@ -90,9 +160,38 @@ export default function Settings() {
     }, 1200);
   };
 
-  const handleApply = () => {
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 2500);
+  const handleApply = async () => {
+    setIsSavingDb(true);
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/settings/database", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          db_name: settings.dbName,
+          db_user: settings.dbUser,
+          db_password: settings.dbPass,
+          db_host: settings.dbHost,
+          db_port: settings.dbPort,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setIsDbConnected(Boolean(data.is_connected));
+        setDbError(data.connection_error || null);
+        window.dispatchEvent(new Event("proba_db_status_change"));
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2500);
+      } else {
+        setIsDbConnected(false);
+        setDbError("Failed to save database settings.");
+      }
+    } catch (err: any) {
+      setIsDbConnected(false);
+      setDbError(err.message || "Failed to reach backend server.");
+    } finally {
+      setIsSavingDb(false);
+    }
   };
 
   return (
@@ -119,10 +218,11 @@ export default function Settings() {
 
             <div className="border border-slate-300/90 rounded-2xl p-6 bg-white flex flex-col justify-between shadow-xs">
               <div>
-                <h2 className="text-xs font-bold text-[#0F1B2B] tracking-wider pb-3 border-b border-slate-200 mb-3 uppercase">
-                  DATABASE SETUP
-                </h2>
-
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-3">
+                  <h2 className="text-xs font-bold text-[#0F1B2B] tracking-wider uppercase">
+                    DATABASE SETUP
+                  </h2>
+                </div>
                 <div className="space-y-2">
                   <div>
                     <input
@@ -181,6 +281,13 @@ export default function Settings() {
                     </button>
                   </div>
                 </div>
+
+                {dbError && !isDbConnected && !isLoadingDb && (
+                  <div className="mt-3 p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-700 flex items-start gap-2">
+                    <i className="bi bi-exclamation-triangle-fill text-rose-500 mt-0.5 shrink-0" />
+                    <span className="break-all">{dbError}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -344,7 +451,7 @@ export default function Settings() {
 
           {saveSuccess && (
             <span className="text-xs font-bold text-emerald-600 flex items-center gap-1 animate-fade-in">
-              <i className="bi bi-check-circle-fill" /> Settings Applied!
+              <i className="bi bi-check-circle-fill" /> Settings & .env Saved!
             </span>
           )}
 
@@ -358,9 +465,11 @@ export default function Settings() {
           <button
             type="button"
             onClick={handleApply}
-            className="text-xs font-bold text-[#0F1B2B] bg-[#ECEEF1] hover:bg-slate-200 border border-slate-300 rounded-xl px-7 py-2 shadow-xs transition-all cursor-pointer active:scale-95"
+            disabled={isSavingDb}
+            className="text-xs font-bold text-[#0F1B2B] bg-[#ECEEF1] hover:bg-slate-200 border border-slate-300 rounded-xl px-7 py-2 shadow-xs transition-all cursor-pointer active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
           >
-            Apply
+            {isSavingDb && <i className="bi bi-arrow-repeat animate-spin text-xs" />}
+            <span>{isSavingDb ? "Saving..." : "Apply"}</span>
           </button>
         </div>
       </BottomBar>
