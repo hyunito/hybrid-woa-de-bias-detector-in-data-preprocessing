@@ -12,17 +12,21 @@ class WOAAuditor:
     Navigates a 3D search space: [Script Index, Transformation Index, Demographic Group Index]
     to discover potential high-disparity bias hotspots across preprocessing pipelines.
     """
-    def __init__(self, metadata_logs=None, num_whales=30, max_iter=15):
+    DEFAULT_NUM_WHALES = 30
+    DEFAULT_MAX_ITER = 15
+    def __init__(self, metadata_logs = None, num_whales = DEFAULT_NUM_WHALES, max_iter = DEFAULT_MAX_ITER, de_params = None):
         """
         Initializes the WOA search swarm.
 
         :param metadata_logs: Optional list of provenance logs to initialize space from.
         :param num_whales: Number of search agents in the whale swarm.
         :param max_iter: Maximum exploration iterations.
+        :param de_params: Optional dictionary of hyperparameters to configure the DE refinement stage.
         """
         self.num_whales = num_whales
         self.max_iter = max_iter
         self.metadata_logs = metadata_logs
+        self.de_params = de_params or {}
         
         self.scripts, self.transformations, self.demographics = fitness.get_space_dimensions(metadata_logs)
         if not self.scripts:
@@ -68,7 +72,7 @@ class WOAAuditor:
         :param callback: Optional streaming callback for real-time progress events.
         :return: Final audit results dictionary from hybrid DE refinement.
         """
-        de_auditor = DEAuditor(metadata_logs=self.metadata_logs)
+        de_auditor = DEAuditor(metadata_logs=self.metadata_logs, **self.de_params)
         self.all_biases = []
         
         whales_pos = []

@@ -208,6 +208,14 @@ export default function Results() {
 
   // Selected Bias Finding
   const currentBias = rankedBiases[selectedBiasIndex] || rankedBiases[0] || null;
+  // Calculate highest fitness score found during search (even if below threshold)
+  const peakDiscoveredScore = useMemo(() => {
+    if (rankedBiases.length > 0) return rankedBiases[0].fitness_score;
+    if (chartData.length > 0) {
+      return Math.max(...chartData.map((pt) => pt.best_fitness || pt.fitness_score || 0));
+    }
+    return 0;
+  }, [rankedBiases, chartData]);
 
   // Find matching Provenance Record
   const matchingProvenance = useMemo(() => {
@@ -428,104 +436,144 @@ export default function Results() {
               </div>
             )}
 
-            {/* Lineage Grid */}
-            <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-4 space-y-3">
-              {/* Transformation & Script */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-3 border-b border-slate-200/60">
+            {/* If 0 bias findings, show Clean Pipeline State */}
+            {rankedBiases.length === 0 ? (
+              <div className="bg-emerald-50/70 border border-emerald-200/90 rounded-2xl p-6 text-center flex flex-col items-center justify-center space-y-3 my-auto">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-2xl shadow-xs">
+                  <i className="bi bi-shield-check" />
+                </div>
                 <div>
-                  <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
-                    Transformation
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-900">
-                      {currentBias?.transformation_name || matchingProvenance?.transformation_name || "N/A"}
+                  <h3 className="text-base font-bold text-emerald-950">
+                    No Bias Hotspots Detected
+                  </h3>
+                  <p className="text-xs text-emerald-700 max-w-md mt-1 leading-relaxed">
+                    All pipeline preprocessing transformations and intersectional demographic subgroups remained within your configured disparity tolerance threshold.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 w-full max-w-sm pt-2">
+                  <div className="bg-white border border-emerald-200/60 rounded-xl p-3 shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">
+                      Configured Threshold
                     </span>
-                    {matchingRecommendation?.category && (
-                      <span className="text-[10px] font-semibold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
-                        {matchingRecommendation.category}
-                      </span>
-                    )}
+                    <span className="text-sm font-bold font-mono text-slate-800">
+                      {threshold.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="bg-white border border-emerald-200/60 rounded-xl p-3 shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">
+                      Peak Disparity Found
+                    </span>
+                    <span className="text-sm font-bold font-mono text-emerald-600">
+                      {peakDiscoveredScore > 0 ? peakDiscoveredScore.toFixed(4) : "0.0000"}
+                    </span>
                   </div>
                 </div>
 
-                <div>
-                  <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
-                    Script Name
-                  </span>
-                  <span className="text-xs font-mono font-bold text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200 inline-block">
-                    {currentBias?.script_name || matchingProvenance?.script_name || "N/A"}
-                  </span>
-                </div>
-              </div>
-
-              {/* Timestamp & Row Count Before/After */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-3 border-b border-slate-200/60">
-                <div>
-                  <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
-                    Execution Timestamp
-                  </span>
-                  <span className="text-xs font-mono text-slate-700">
-                    {matchingProvenance?.timestamp
-                      ? new Date(matchingProvenance.timestamp).toLocaleString()
-                      : "2026-09-19 (Pipeline Streamed)"}
-                  </span>
-                </div>
-
-                <div>
-                  <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
-                    Row Count Before / After
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-slate-800 font-bold">
-                      {matchingProvenance?.row_count_before?.toLocaleString() || "N/A"}
-                    </span>
-                    <i className="bi bi-arrow-right text-[10px] text-slate-400" />
-                    <span className="text-xs font-mono text-slate-800 font-bold">
-                      {matchingProvenance?.row_count_after?.toLocaleString() || "N/A"}
-                    </span>
-                    <span className="text-[10px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.2">
-                      {formatDelta(matchingProvenance?.row_count_before, matchingProvenance?.row_count_after)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Highest Bias Group Breakdown */}
-              <div className="pb-3 border-b border-slate-200/60">
-                <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1.5">
-                  Highest Bias Subgroup Breakdown
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-100/70 px-3 py-1 rounded-full border border-emerald-300/60">
+                  <i className="bi bi-check-circle-fill text-emerald-600 text-xs" />
+                  Pipeline Certified Within Safe Tolerances
                 </span>
-                <div className="flex flex-wrap items-center gap-2">
-                  {parsedDemographics.map((demo, dIdx) => (
-                    <div
-                      key={`${demo.key}-${dIdx}`}
-                      className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs flex items-center gap-1.5 shadow-2xs"
-                    >
-                      <span className="text-slate-400 font-medium text-[11px]">{demo.key}:</span>
-                      <strong className="text-slate-900 font-bold">{demo.value}</strong>
-                    </div>
-                  ))}
-                </div>
               </div>
-
-              {/* Bias Score & Privileged Group */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                <div>
-                  <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
-                    Discovered Bias Score
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-black font-mono text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-1">
-                      {currentBias ? currentBias.fitness_score.toFixed(4) : "0.0000"}
+            ) : (
+              /* Normal Lineage Grid (When Biases Are Found) */
+              <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-4 space-y-3">
+                {/* Transformation & Script */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-3 border-b border-slate-200/60">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
+                      Transformation
                     </span>
-                    <span className="text-[11px] text-slate-500 font-medium">
-                      (Threshold: {threshold.toFixed(2)})
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-900">
+                        {currentBias?.transformation_name || "N/A"}
+                      </span>
+                      {matchingRecommendation?.category && (
+                        <span className="text-[10px] font-semibold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
+                          {matchingRecommendation.category}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
+                      Script Name
+                    </span>
+                    <span className="text-xs font-mono font-bold text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200 inline-block">
+                      {currentBias?.script_name || "N/A"}
                     </span>
                   </div>
                 </div>
-              </div>
-            </div>
 
+                {/* Timestamp & Row Count Before/After */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-3 border-b border-slate-200/60">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
+                      Execution Timestamp
+                    </span>
+                    <span className="text-xs font-mono text-slate-700">
+                      {matchingProvenance?.timestamp
+                        ? new Date(matchingProvenance.timestamp).toLocaleString()
+                        : "Pipeline Streamed"}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
+                      Row Count Before / After
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-slate-800 font-bold">
+                        {matchingProvenance?.row_count_before?.toLocaleString() || "N/A"}
+                      </span>
+                      <i className="bi bi-arrow-right text-[10px] text-slate-400" />
+                      <span className="text-xs font-mono text-slate-800 font-bold">
+                        {matchingProvenance?.row_count_after?.toLocaleString() || "N/A"}
+                      </span>
+                      <span className="text-[10px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.2">
+                        {formatDelta(matchingProvenance?.row_count_before, matchingProvenance?.row_count_after)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Highest Bias Group Breakdown */}
+                <div className="pb-3 border-b border-slate-200/60">
+                  <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1.5">
+                    Highest Bias Subgroup Breakdown
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {parsedDemographics.map((demo, dIdx) => (
+                      <div
+                        key={`${demo.key}-${dIdx}`}
+                        className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs flex items-center gap-1.5 shadow-2xs"
+                      >
+                        <span className="text-slate-400 font-medium text-[11px]">{demo.key}:</span>
+                        <strong className="text-slate-900 font-bold">{demo.value}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bias Score & Privileged Group */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
+                      Discovered Bias Score
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-black font-mono text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-1">
+                        {currentBias.fitness_score.toFixed(4)}
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        (Threshold: {threshold.toFixed(2)})
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
           </div>
         </div>

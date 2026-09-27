@@ -10,7 +10,7 @@ from config import PIPELINE_DIR, BACKEND_DIR
 from engine.audit import get_fitness_score
 from engine.hybrid_woa import WOAAuditor
 from routers.result import save_audit_result
-
+from routers.settings import get_algorithm_settings
 router = APIRouter(tags=["Audit"])
 
 @router.websocket("/ws/audit/{audit_id}")
@@ -248,8 +248,22 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
             "type": "audit_start",
             "message": "Starting PROBA..."
         })
-
-        auditor = WOAAuditor(metadata_logs=prov_records, num_whales=20, max_iter=10)
+        # Load dynamic algorithm settings configured by user in Settings page
+        algo_cfg = get_algorithm_settings()
+        num_whales = int(algo_cfg.get("searchingAgents", 30))
+        max_iter = int(algo_cfg.get("maxIterations", 15))
+        de_params = {
+            "pop_size": int(algo_cfg.get("populationSize", 30)),
+            "F": float(algo_cfg.get("scaleFactor", 0.5)),
+            "CR": float(algo_cfg.get("crossoverRate", 0.7)),
+            "max_stagnation": int(algo_cfg.get("maxStagnationLimit", 25))
+        }
+        threshold = float(algo_cfg.get("biasThreshold", 0.2))
+        auditor = WOAAuditor(
+            metadata_logs = prov_records,
+            num_whales = num_whales,
+            max_iter = max_iter,
+            de_params = de_params)
 
         point_queue = asyncio.Queue()
 
@@ -301,7 +315,6 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
         ranked_biases = list(unique_records.values())
         ranked_biases.sort(key=get_fitness_score, reverse=True)
 
-        threshold = 0.2
         filtered_biases = []
         for rank_num, bias in enumerate(ranked_biases, 1):
             bias["rank"] = rank_num

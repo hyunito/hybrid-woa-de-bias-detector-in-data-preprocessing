@@ -1,13 +1,26 @@
 import os
 import psycopg2
-from fastapi import APIRouter
+import json
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-
 from config import PIPELINE_DIR, BACKEND_DIR, SESSION_REGISTRY
+from engine.hybrid_woa import WOAAuditor
+from engine.hybrid_de import DEAuditor
 
 router = APIRouter(tags=["Settings"])
 
 ENV_FILE = os.path.join(BACKEND_DIR, ".env")
+
+ALGO_SETTINGS_FILE = os.path.join(BACKEND_DIR, "storage", "algorithm_settings.json")
+
+class AlgorithmConfigPayload(BaseModel):
+    searchingAgents: int
+    maxIterations: int
+    populationSize: int
+    scaleFactor: float
+    crossoverRate: float
+    maxStagnationLimit: int
+    biasThreshold: float
 
 class DatabaseConfigPayload(BaseModel):
     db_name: str
@@ -15,6 +28,49 @@ class DatabaseConfigPayload(BaseModel):
     db_password: str
     db_host: str = "localhost"
     db_port: str = "5432"
+
+def get_default_settings():
+
+    return {
+        "searchingAgents": WOAAuditor.DEFAULT_NUM_WHALES,
+        "maxIterations": WOAAuditor.DEFAULT_MAX_ITER,
+        "populationSize": DEAuditor.DEFAULT_POP_SIZE,
+        "scaleFactor": DEAuditor.DEFAULT_F,
+        "crossoverRate": DEAuditor.DEFAULT_CR,
+        "maxStagnationLimit": DEAuditor.DEFAULT_MAX_STAGNATION,
+        "biasThreshold": 0.2
+    }
+
+@router.get("/api/settings/algorithm")
+def get_algorithm_settings() -> dict:
+    """
+    Retrieves saved algorithm settings from backend/storage/algorithm_settings.json.
+    Falls back to algorithm class defaults if the file does not exist yet.
+    """
+    if os.path.exists(ALGO_SETTINGS_FILE):
+        try:
+            with open(ALGO_SETTINGS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return {**get_default_settings(), **data}
+        except Exception as err:
+            print(f"[Settings] Error reading {ALGO_SETTINGS_FILE}: {err}")
+    return get_default_settings()
+
+@router.post("/api/settings/algorithm")
+def update_algorithm_config(payload: AlgorithmConfigPayload):
+    """
+    Saves updated algorithm parameters to backend/storage/algorithm_settings.json.
+    """
+    os.makedirs(os.path.dirname(ALGO_SETTINGS_FILE), exist_ok=True)
+    settings_dict = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
+    try:
+        with open(ALGO_SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(settings_dict, f, indent=2)
+        print(f"[Settings] Successfully saved algorithm settings to {ALGO_SETTINGS_FILE}")
+        return {"status": "success", "settings": settings_dict}
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=f"Failed to persist algorithm settings: {err}")
+
 
 def get_or_create_env() -> dict:
     """
@@ -97,11 +153,7 @@ def check_db_connection(dbname: str, user: str, password: str, host: str, port: 
     except Exception as e:
         return False, str(e)
 
-
-# ==========================================
 # Database Configuration Endpoints
-# ==========================================
-
 @router.get("/api/settings/database")
 def get_database_settings():
     """
@@ -173,10 +225,7 @@ def get_database_status():
     }
 
 
-# ==========================================
 # Session Management & Reset Endpoints
-# ==========================================
-
 def _execute_cleanup(session_id: str):
     deleted_files = []
     if session_id in SESSION_REGISTRY:

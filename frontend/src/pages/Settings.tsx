@@ -23,15 +23,14 @@ interface SettingsState {
 
 const DEFAULT_ALGO_SETTINGS = {
   searchingAgents: 30,
-  maxIterations: 500,
-
-  populationSize: 50,
+  maxIterations: 15,
+  populationSize: 30,
   scaleFactor: 0.5,
-  crossoverRate: 0.9,
-  maxStagnationLimit: 100,
-
-  biasThreshold: 0.8,
+  crossoverRate: 0.7,
+  maxStagnationLimit: 25,
+  biasThreshold: 0.2,
 };
+
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -78,6 +77,23 @@ export default function Settings() {
           if (isMounted) {
             setIsDbConnected(false);
             setDbError("Unable to retrieve database configuration.");
+          }
+        }
+
+        const algoRes = await fetch("http://127.0.0.1:8000/api/settings/algorithm");
+        if (algoRes.ok) {
+          const algoData = await algoRes.json();
+          if (isMounted) {
+            setSettings((prev) => ({
+              ...prev,
+              searchingAgents: Number(algoData.searchingAgents ?? 30),
+              maxIterations: Number(algoData.maxIterations ?? 15),
+              populationSize: Number(algoData.populationSize ?? 30),
+              scaleFactor: Number(algoData.scaleFactor ?? 0.5),
+              crossoverRate: Number(algoData.crossoverRate ?? 0.7),
+              maxStagnationLimit: Number(algoData.maxStagnationLimit ?? 25),
+              biasThreshold: Number(algoData.biasThreshold ?? 0.2),
+            }));
           }
         }
       } catch (err: any) {
@@ -186,6 +202,28 @@ export default function Settings() {
         setIsDbConnected(false);
         setDbError("Failed to save database settings.");
       }
+
+      const algoRes = await fetch("http://127.0.0.1:8000/api/settings/algorithm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          searchingAgents: Number(settings.searchingAgents),
+          maxIterations: Number(settings.maxIterations),
+          populationSize: Number(settings.populationSize),
+          scaleFactor: Number(settings.scaleFactor),
+          crossoverRate: Number(settings.crossoverRate),
+          maxStagnationLimit: Number(settings.maxStagnationLimit),
+          biasThreshold: Number(settings.biasThreshold),
+        }),
+      });
+      if (algoRes.ok) {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2500);
+      } else {
+        const errData = await algoRes.json();
+        alert(`Failed to save algorithm settings: ${errData.detail || "Validation error"}`);
+      }
+
     } catch (err: any) {
       setIsDbConnected(false);
       setDbError(err.message || "Failed to reach backend server.");
@@ -451,7 +489,7 @@ export default function Settings() {
 
           {saveSuccess && (
             <span className="text-xs font-bold text-emerald-600 flex items-center gap-1 animate-fade-in">
-              <i className="bi bi-check-circle-fill" /> Settings & .env Saved!
+              <i className="bi bi-check-circle-fill" /> Saved!
             </span>
           )}
 

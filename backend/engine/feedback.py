@@ -130,9 +130,7 @@ def generate_mitigation_report(ranked_biases):
 
 def print_mitigation_report(recommendations, script_rollups):
     """Prints a clear, formatted mitigation report to the console."""
-    print("\n" + "=" * 84)
     print("PROBA - AUDIT MITIGATION & FEEDBACK RECOMMENDATION REPORT")
-    print("=" * 84)
 
     if not recommendations:
         print("No bias findings exceeded the reporting threshold. Pipeline is within acceptable bounds.")

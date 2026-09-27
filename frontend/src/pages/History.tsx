@@ -383,15 +383,6 @@ export default function History() {
                       ? "No past audits recorded yet. Completed audits will be saved in storage/audits and displayed here."
                       : "No historical logs found matching your search or filter."}
                   </span>
-                  {logs.length === 0 && (
-                    <button
-                      type="button"
-                      onClick={() => navigate("/dashboard")}
-                      className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-800 underline cursor-pointer"
-                    >
-                      Start a Bias Audit on Dashboard
-                    </button>
-                  )}
                 </div>
               ) : (
                 filteredLogs.map((log) => (

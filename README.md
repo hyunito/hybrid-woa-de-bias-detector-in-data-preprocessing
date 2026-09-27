@@ -32,7 +32,6 @@ From the repository root, navigate into the frontend directory and install depen
 ```bash
 cd frontend
 npm install
-npm run dev
 ```
 
 Once started, open your browser and navigate to:
