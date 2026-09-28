@@ -8,10 +8,8 @@ _utils_dir = os.path.join(_current_dir, "utils")
 if _utils_dir not in sys.path:
     sys.path.insert(0, _utils_dir)
 
-try:
-    from utils.provenance import ProvenanceMetadataTracker
-except ImportError:
-    from provenance import ProvenanceMetadataTracker
+from utils.provenance import ProvenanceMetadataTracker
+
 
 tracker = ProvenanceMetadataTracker(
     protected_attributes=[

@@ -13,15 +13,33 @@ export default function Dashboard() {
   const [isDraggingDataset, setIsDraggingDataset] = useState(false);
   const datasetInputRef = useRef<HTMLInputElement>(null);
   const [isScanning, setIsScanning] = useState(false);
+
+  const [savedDatasetInfo, setSavedDatasetInfo] = useState<{ name: string; size: number } | null>(() => {
+    try {
+      const saved = sessionStorage.getItem("dataset_file_info");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // 2. Load scanResult from sessionStorage if it exists
   const [scanResult, setScanResult] = useState<{
     total_columns: number;
     columns: Array<{ id: string; name: string; type: string; is_binary: boolean }>;
     binary_targets: Array<{ column: string; values: string[] }>;
     saved_path?: string;
-  } | null>(null);
+  } | null>(() => {
+    try {
+      const saved = sessionStorage.getItem("scanned_dataset");
+      return saved && saved !== "undefined" ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [scanError, setScanError] = useState<string | null>(null);
 
-  // Session ID for resource tracking and safe exit cleanup
   const [sessionId] = useState<string>(() => {
     let existing = sessionStorage.getItem("current_session_id");
     if (!existing) {
@@ -52,7 +70,6 @@ export default function Dashboard() {
   const [isUploadingScripts, setIsUploadingScripts] = useState(false);
   const [scriptUploadNotice, setScriptUploadNotice] = useState<string | null>(null);
 
-  // Upload and stream dataset to backend/dataset/ in chunks
   const uploadAndScanDataset = async (file: File) => {
     setIsScanning(true);
     setScanError(null);
@@ -79,6 +96,8 @@ export default function Dashboard() {
       sessionStorage.removeItem("current_audit_id");
       sessionStorage.removeItem("audit_results");
       sessionStorage.setItem("scanned_dataset", JSON.stringify(data));
+      sessionStorage.setItem("dataset_file_info", JSON.stringify({ name: file.name, size: file.size }));
+      setSavedDatasetInfo({ name: file.name, size: file.size });
       window.dispatchEvent(new Event("proba_step_change"));
     } catch (err: unknown) {
       console.error("Scanning error:", err);
@@ -89,7 +108,6 @@ export default function Dashboard() {
     }
   };
 
-  // Upload preprocessing scripts to backend/pipeline/
   const uploadScriptsToBackend = async (pyFiles: File[]) => {
     if (pyFiles.length === 0) return;
     setIsUploadingScripts(true);
@@ -197,6 +215,11 @@ export default function Dashboard() {
     setDraggedIndex(null);
   };
 
+  // Unified file representation (memory File or restored session info)
+  const currentFile = datasetFile
+    ? { name: datasetFile.name, size: datasetFile.size }
+    : savedDatasetInfo;
+
   const removeScript = (id: string) => {
     setScripts((prev) => prev.filter((s) => s.id !== id));
   };
@@ -238,7 +261,7 @@ export default function Dashboard() {
                   : "border-slate-400/90 hover:border-slate-600 hover:bg-slate-50/70"
               )}
             >
-              {datasetFile ? (
+              {currentFile ? (
                 <div className="flex flex-col items-center gap-2">
                   <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600 text-2xl mb-1">
                     {isScanning ? (
@@ -248,10 +271,10 @@ export default function Dashboard() {
                     )}
                   </div>
                   <span className="font-bold text-base text-[#0F1B2B] break-all max-w-xs">
-                    {datasetFile.name}
+                    {currentFile.name}
                   </span>
                   <span className="text-xs text-slate-500">
-                    {(datasetFile.size / 1024).toFixed(1)} KB
+                    {(currentFile.size / 1024).toFixed(1)} KB
                   </span>
 
                   {isScanning && (
@@ -280,11 +303,13 @@ export default function Dashboard() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
+                      setSavedDatasetInfo(null);
                       setDatasetFile(null);
                       setScanResult(null);
                       setScanError(null);
                       sessionStorage.removeItem("scanned_dataset");
-    window.dispatchEvent(new Event("proba_step_change"));
+                      sessionStorage.removeItem("dataset_file_info");
+                      window.dispatchEvent(new Event("proba_step_change"));
                     }}
                     className="mt-2 text-xs font-bold text-red-600 hover:underline"
                   >

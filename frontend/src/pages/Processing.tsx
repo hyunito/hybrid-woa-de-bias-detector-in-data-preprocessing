@@ -82,22 +82,48 @@ export default function Processing() {
     }
     return [];
   });
-
-  // State
   const [activeScriptIndex, setActiveScriptIndex] = useState<number>(0);
+  const [socketError, setSocketError] = useState<string | null>(null);
+
+  // Restore chartData from sessionStorage
+  const [chartData, setChartData] = useState<ChartPoint[]>(() => {
+    try {
+      const saved = sessionStorage.getItem("chart_data");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Restore terminalLogs from sessionStorage
+  const [terminalLogs, setTerminalLogs] = useState<TerminalLine[]>(() => {
+    try {
+      const saved = sessionStorage.getItem("terminal_logs");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch { }
+    return [
+      {
+        id: "init",
+        stream: "info",
+        text: `[SYSTEM] Audit session #${auditId} ready. Click 'Process' to execute pipeline ingestion and bias search.`,
+      },
+    ];
+  });
+
+  // Check if an audit was already completed in this session
+  const [isCompleted, setIsCompleted] = useState<boolean>(() => {
+    return Boolean(sessionStorage.getItem("audit_results"));
+  });
+
   const [currentStage, setCurrentStage] = useState<
     "ready" | "connecting" | "pipeline" | "evaluating" | "completed" | "error"
-  >("ready");
-  const [chartData, setChartData] = useState<ChartPoint[]>([]);
-  const [terminalLogs, setTerminalLogs] = useState<TerminalLine[]>([
-    {
-      id: "init",
-      stream: "info",
-      text: `[SYSTEM] Audit session #${auditId} ready. Click 'Process' to execute pipeline ingestion and bias search.`,
-    },
-  ]);
-  const [socketError, setSocketError] = useState<string | null>(null);
-  const [isCompleted, setIsCompleted] = useState(false);
+  >(() => {
+    return sessionStorage.getItem("audit_results") ? "completed" : "ready";
+  });
+
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const isProcessing = currentStage === "connecting" || currentStage === "pipeline" || currentStage === "evaluating";
 

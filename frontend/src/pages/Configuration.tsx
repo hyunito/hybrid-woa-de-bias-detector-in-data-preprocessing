@@ -44,22 +44,51 @@ export default function Configuration() {
 
 
   const availableColumns = scannedData?.columns.map((c) => c.name) || [];
-  const binaryTargetColumns = scannedData?.binary_targets?.map((b) => b.column) || 
+  const binaryTargetColumns = scannedData?.binary_targets?.map((b) => b.column) ||
     scannedData?.columns.filter((c) => c.is_binary).map((c) => c.name) || [];
+  // 1. Read existing configuration from sessionStorage if user navigated back
+  const savedConfig = (() => {
+    try {
+      const saved = sessionStorage.getItem("audit_config");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  })();
 
-  const [selectedAttributes, setSelectedAttributes] = useState<ProtectedAttribute[]>([]);
-  const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
+  // 2. Restore Protected Attributes
+  const [selectedAttributes, setSelectedAttributes] = useState<ProtectedAttribute[]>(() => {
+    if (savedConfig?.protected_attributes && Array.isArray(savedConfig.protected_attributes)) {
+      return savedConfig.protected_attributes.map((a: { name: string; type: string }, idx: number) => ({
+        id: `${Date.now()}-${idx}-${a.name}`,
+        name: a.name,
+        type: a.type.toLowerCase() === "continuous" ? "Continuous" : "Categorical",
+      }));
+    }
+    return [];
+  });
 
-  const [targetColumn, setTargetColumn] = useState<string>("");
-  const [favorableOutcome, setFavorableOutcome] = useState<string>("");
-  const [unfavorableOutcome, setUnfavorableOutcome] = useState<string>("");
+  // 3. Restore Target column, Favorable, and Unfavorable values
+  const [targetColumn, setTargetColumn] = useState<string>(
+    () => savedConfig?.target_variable?.name || ""
+  );
+  const [favorableOutcome, setFavorableOutcome] = useState<string>(
+    () => savedConfig?.target_variable?.positive || ""
+  );
+  const [unfavorableOutcome, setUnfavorableOutcome] = useState<string>(
+    () => savedConfig?.target_variable?.negative || ""
+  );
 
-  const [isTargetDropdownOpen, setIsTargetDropdownOpen] = useState(false);
-  const [isFavorableDropdownOpen, setIsFavorableDropdownOpen] = useState(false);
-  const [isUnfavorableDropdownOpen, setIsUnfavorableDropdownOpen] = useState(false);
+  // Unified dropdown manager: only one dropdown can be open at a time
+  type ActiveDropdown = "column" | "target" | "favorable" | "unfavorable" | null;
+  const [activeDropdown, setActiveDropdown] = useState<ActiveDropdown>(null);
+
+  const toggleDropdown = (name: ActiveDropdown) => {
+    setActiveDropdown((prev) => (prev === name ? null : name));
+  };
 
   const selectedBinary = scannedData?.binary_targets?.find((b) => b.column === targetColumn);
-  const targetOutcomes = selectedBinary?.values || 
+  const targetOutcomes = selectedBinary?.values ||
     scannedData?.columns.find((c) => c.name === targetColumn)?.unique_values || [];
 
   const addAttribute = (colName: string) => {
@@ -73,7 +102,7 @@ export default function Configuration() {
         },
       ]);
     }
-    setIsColumnDropdownOpen(false);
+    setActiveDropdown(null);
   };
 
   const removeAttribute = (id: string) => {
@@ -90,8 +119,33 @@ export default function Configuration() {
     setTargetColumn(newTarget);
     setFavorableOutcome("");
     setUnfavorableOutcome("");
-    setIsTargetDropdownOpen(false);
+    setActiveDropdown(null);
   };
+
+  const handleSelectFavorable = (val: string) => {
+    setFavorableOutcome(val);
+    setActiveDropdown(null);
+
+    if (targetOutcomes.length === 2) {
+      const otherVal = targetOutcomes.find((item) => item !== val);
+      if (otherVal) {
+        setUnfavorableOutcome(otherVal);
+      }
+    }
+  };
+
+  const handleSelectUnfavorable = (val: string) => {
+    setUnfavorableOutcome(val);
+    setActiveDropdown(null);
+
+    if (targetOutcomes.length === 2) {
+      const otherVal = targetOutcomes.find((item) => item !== val);
+      if (otherVal) {
+        setFavorableOutcome(otherVal);
+      }
+    }
+  };
+
 
   const handleProceed = async () => {
     setErrorMessage(null);
@@ -175,7 +229,7 @@ export default function Configuration() {
   return (
     <div className="flex flex-col h-full justify-between gap-6 max-w-7xl mx-auto w-full">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 items-stretch">
-        
+
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex flex-col justify-between overflow-hidden">
           <div className="py-5 px-6 border-b border-slate-200 text-center">
             <h2 className="text-2xl font-bold tracking-tight text-[#0F1B2B] leading-snug">
@@ -188,14 +242,14 @@ export default function Configuration() {
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setIsColumnDropdownOpen((prev) => !prev)}
+                  onClick={() => toggleDropdown("column")}
                   className="w-full border border-slate-400/90 rounded-2xl py-3 px-5 flex items-center justify-between text-sm text-slate-700 bg-white hover:border-slate-600 transition-colors cursor-pointer text-left"
                 >
                   <span className="text-slate-600">Select column/s from dataset</span>
-                  <i className={cn("bi bi-chevron-down text-xs text-slate-500 transition-transform", isColumnDropdownOpen && "rotate-180")} />
+                  <i className={cn("bi bi-chevron-down text-xs text-slate-500 transition-transform", activeDropdown === "column" && "rotate-180")} />
                 </button>
 
-                {isColumnDropdownOpen && (
+                {activeDropdown === "column" && (
                   <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-300 rounded-2xl shadow-xl z-30 py-2 max-h-56 overflow-y-auto">
                     {availableColumns.length === 0 ? (
                       <div className="px-5 py-3 text-xs text-slate-400">
@@ -316,18 +370,14 @@ export default function Configuration() {
                 <div className="relative">
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsTargetDropdownOpen((p) => !p);
-                      setIsFavorableDropdownOpen(false);
-                      setIsUnfavorableDropdownOpen(false);
-                    }}
+                    onClick={() => toggleDropdown("target")}
                     className="w-full border border-slate-400/90 rounded-2xl py-3 px-5 flex items-center justify-between text-sm font-semibold text-[#0F1B2B] bg-white hover:border-slate-600 transition-colors cursor-pointer text-left"
                   >
                     <span>{targetColumn || "Select target column from dataset"}</span>
-                    <i className={cn("bi bi-chevron-down text-xs text-slate-500 transition-transform", isTargetDropdownOpen && "rotate-180")} />
+                    <i className={cn("bi bi-chevron-down text-xs text-slate-500 transition-transform", activeDropdown === "target" && "rotate-180")} />
                   </button>
 
-                  {isTargetDropdownOpen && (
+                  {activeDropdown === "target" && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-300 rounded-2xl shadow-xl z-30 py-2 max-h-56 overflow-y-auto">
                       {binaryTargetColumns.length === 0 ? (
                         <div className="px-5 py-3 text-xs text-slate-400">
@@ -361,11 +411,7 @@ export default function Configuration() {
                   <button
                     type="button"
                     disabled={!targetColumn}
-                    onClick={() => {
-                      setIsFavorableDropdownOpen((p) => !p);
-                      setIsTargetDropdownOpen(false);
-                      setIsUnfavorableDropdownOpen(false);
-                    }}
+                    onClick={() => toggleDropdown("favorable")}
                     className={cn(
                       "w-full border border-slate-400/90 rounded-2xl py-3 px-5 flex items-center justify-between text-sm font-semibold bg-white transition-colors text-left",
                       !targetColumn
@@ -374,10 +420,10 @@ export default function Configuration() {
                     )}
                   >
                     <span>{favorableOutcome || (targetColumn ? "Select favorable outcome value" : "Select a target column first")}</span>
-                    <i className={cn("bi bi-chevron-down text-xs text-slate-500 transition-transform", isFavorableDropdownOpen && "rotate-180")} />
+                    <i className={cn("bi bi-chevron-down text-xs text-slate-500 transition-transform", activeDropdown === "favorable" && "rotate-180")} />
                   </button>
 
-                  {isFavorableDropdownOpen && (
+                  {activeDropdown === "favorable" && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-300 rounded-2xl shadow-xl z-30 py-2 max-h-56 overflow-y-auto">
                       {targetOutcomes.length === 0 ? (
                         <div className="px-5 py-3 text-xs text-slate-400">
@@ -388,10 +434,7 @@ export default function Configuration() {
                           <button
                             key={val}
                             type="button"
-                            onClick={() => {
-                              setFavorableOutcome(val);
-                              setIsFavorableDropdownOpen(false);
-                            }}
+                            onClick={() => handleSelectFavorable(val)}
                             className={cn(
                               "w-full text-left px-5 py-2.5 text-sm font-semibold hover:bg-blue-50/70 transition-colors",
                               favorableOutcome === val ? "text-blue-600 bg-blue-50/50" : "text-[#0F1B2B]"
@@ -414,11 +457,7 @@ export default function Configuration() {
                   <button
                     type="button"
                     disabled={!targetColumn}
-                    onClick={() => {
-                      setIsUnfavorableDropdownOpen((p) => !p);
-                      setIsTargetDropdownOpen(false);
-                      setIsFavorableDropdownOpen(false);
-                    }}
+                    onClick={() => toggleDropdown("unfavorable")}
                     className={cn(
                       "w-full border border-slate-400/90 rounded-2xl py-3 px-5 flex items-center justify-between text-sm font-semibold bg-white transition-colors text-left",
                       !targetColumn
@@ -427,10 +466,10 @@ export default function Configuration() {
                     )}
                   >
                     <span>{unfavorableOutcome || (targetColumn ? "Select unfavorable outcome value" : "Select a target column first")}</span>
-                    <i className={cn("bi bi-chevron-down text-xs text-slate-500 transition-transform", isUnfavorableDropdownOpen && "rotate-180")} />
+                    <i className={cn("bi bi-chevron-down text-xs text-slate-500 transition-transform", activeDropdown === "unfavorable" && "rotate-180")} />
                   </button>
 
-                  {isUnfavorableDropdownOpen && (
+                  {activeDropdown === "unfavorable" && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-300 rounded-2xl shadow-xl z-30 py-2 max-h-56 overflow-y-auto">
                       {targetOutcomes.length === 0 ? (
                         <div className="px-5 py-3 text-xs text-slate-400">
@@ -441,10 +480,7 @@ export default function Configuration() {
                           <button
                             key={val}
                             type="button"
-                            onClick={() => {
-                              setUnfavorableOutcome(val);
-                              setIsUnfavorableDropdownOpen(false);
-                            }}
+                            onClick={() => handleSelectUnfavorable(val)}
                             className={cn(
                               "w-full text-left px-5 py-2.5 text-sm font-semibold hover:bg-blue-50/70 transition-colors",
                               unfavorableOutcome === val ? "text-blue-600 bg-blue-50/50" : "text-[#0F1B2B]"
