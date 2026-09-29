@@ -7,6 +7,7 @@ import Processing from "./pages/Processing";
 import Results from "./pages/Results";
 import History from "./pages/History";
 import Settings from "./pages/Settings";
+import Welcome from "./pages/Welcome";
 
 export default function App() {
   useEffect(() => {
@@ -49,7 +50,8 @@ export default function App() {
 
         <main className="flex-1 overflow-y-auto p-6 lg:p-10 flex flex-col justify-between">
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/welcome" replace />} />
+            <Route path="/welcome" element={<Welcome />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/ingestion" element={<Navigate to="/dashboard" replace />} />
             <Route path="/configuration" element={<Configuration />} />

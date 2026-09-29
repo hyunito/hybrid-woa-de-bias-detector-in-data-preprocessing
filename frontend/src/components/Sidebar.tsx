@@ -69,7 +69,10 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-white border-r border-slate-300 flex flex-col justify-between h-screen sticky top-0 select-none shadow-sm">
       <div>
-        <div className="bg-[#ECEEF1] border-b border-slate-300 py-5 px-5 flex items-center justify-center gap-3">
+        <NavLink
+          to="/welcome"
+          className="bg-[#ECEEF1] border-b border-slate-300 py-5 px-5 flex items-center justify-center gap-3"
+        >
           <img
             src="/icons/proba-logo.svg"
             alt="PROBA Logo"
@@ -86,7 +89,7 @@ export default function Sidebar() {
               Provenance-based Bias Auditor
             </span>
           </div>
-        </div>
+        </NavLink>
 
         {/* Navigation Area */}
         <div className="pt-8 pb-6 px-6">
