@@ -31,6 +31,28 @@ const DEFAULT_ALGO_SETTINGS = {
   biasThreshold: 0.2,
 };
 
+interface ParamLabelProps {
+  label: string;
+  tooltip: string;
+}
+
+function ParamLabel({ label, tooltip }: ParamLabelProps) {
+  return (
+    <div className="relative group flex items-center gap-1.5 cursor-help select-none">
+      <span className="font-bold text-[#0F1B2B] group-hover:text-blue-600 transition-colors">
+        {label}
+      </span>
+      <i className="bi bi-info-circle text-[11px] text-slate-400 group-hover:text-blue-600 transition-colors" />
+
+      {/* Floating Tooltip Bubble */}
+      <div className="absolute bottom-full left-0 mb-2 hidden group-hover:flex flex-col z-50 w-64 p-2.5 bg-[#0F1B2B] text-white text-[11px] leading-relaxed rounded-xl shadow-xl pointer-events-none transition-all">
+        <span>{tooltip}</span>
+        {/* Subtle arrow pointer pointing down */}
+        <div className="absolute top-full left-4 -mt-1 border-4 border-transparent border-t-[#0F1B2B]" />
+      </div>
+    </div>
+  );
+}
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -338,9 +360,10 @@ export default function Settings() {
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-[#0F1B2B]">
-                      Number of Searching Agents
-                    </span>
+                    <ParamLabel
+                      label="Number of Searching Agents"
+                      tooltip="The number of search agents exploring different combinations in the dataset to detect bias."
+                    />
                     <div className="flex items-center border border-slate-300 rounded-lg px-2 py-1 bg-white">
                       <input
                         type="number"
@@ -354,9 +377,10 @@ export default function Settings() {
                   </div>
 
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-[#0F1B2B]">
-                      Maximum Number of Iterations
-                    </span>
+                    <ParamLabel
+                      label="Maximum Number of Iterations"
+                      tooltip="The maximum number of search cycles the algorithm will run before stopping."
+                    />
                     <div className="flex items-center border border-slate-300 rounded-lg px-2 py-1 bg-white">
                       <input
                         type="number"
@@ -378,9 +402,11 @@ export default function Settings() {
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-[#0F1B2B]">
-                      Population Size
-                    </span>
+                    <ParamLabel
+                      label="Population Size"
+                      tooltip="The total number of candidate bias patterns tracked and refined during the search."
+                    />
+
                     <div className="flex items-center border border-slate-300 rounded-lg px-2 py-1 bg-white">
                       <input
                         type="number"
@@ -394,9 +420,11 @@ export default function Settings() {
                   </div>
 
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-[#0F1B2B]">
-                      Scale Factor
-                    </span>
+                    <ParamLabel
+                      label="Scale Factor"
+                      tooltip="Controls how aggressively the search explores new, untested demographic combinations."
+                    />
+
                     <div className="flex items-center border border-slate-300 rounded-lg px-2 py-1 bg-white">
                       <input
                         type="number"
@@ -411,9 +439,10 @@ export default function Settings() {
                   </div>
 
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-[#0F1B2B]">
-                      Crossover Rate
-                    </span>
+                    <ParamLabel
+                      label="Crossover Rate"
+                      tooltip="The probability of combining characteristics from two candidate groups to discover intersectional bias."
+                    />
                     <div className="flex items-center border border-slate-300 rounded-lg px-2 py-1 bg-white">
                       <input
                         type="number"
@@ -428,9 +457,10 @@ export default function Settings() {
                   </div>
 
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-[#0F1B2B]">
-                      Maximum Stagnation Limit
-                    </span>
+                    <ParamLabel
+                      label="Maximum Stagnation Limit"
+                      tooltip="The number of rounds with no new findings before the algorithm resets to avoid getting stuck."
+                    />
                     <div className="flex items-center border border-slate-300 rounded-lg px-2 py-1 bg-white">
                       <input
                         type="number"
@@ -447,11 +477,12 @@ export default function Settings() {
 
             </div>
           </div>
-          <div className="border border-slate-300/90 rounded-2xl p-2 px-6 bg-white shadow-xs">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-2">
-              <h2 className="text-xs font-bold text-[#0F1B2B] tracking-wider uppercase">
-                BIAS THRESHOLD
-              </h2>
+          <div className="border border-slate-300/90 rounded-2xl p-3 px-6 bg-white shadow-xs">
+            <div className="flex items-center justify-between text-xs">
+              <ParamLabel
+                label="BIAS THESHOLD"
+                tooltip="The disparity tolerance level above which a demographic group is officially flagged as biased."
+              />
               <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
                 {settings.biasThreshold.toFixed(2)}
               </span>
@@ -483,13 +514,13 @@ export default function Settings() {
         <div className="flex items-center gap-3">
           {restartSuccess && (
             <span className="text-xs font-bold text-rose-600 flex items-center gap-1 animate-fade-in">
-              <i className="bi bi-check-circle-fill" /> Session Reset! Redirecting...
+              <i className="bi bi-check-circle-fill" /> Session Reset. Redirecting...
             </span>
           )}
 
           {saveSuccess && (
             <span className="text-xs font-bold text-emerald-600 flex items-center gap-1 animate-fade-in">
-              <i className="bi bi-check-circle-fill" /> Saved!
+              <i className="bi bi-check-circle-fill" /> Saved
             </span>
           )}
 
