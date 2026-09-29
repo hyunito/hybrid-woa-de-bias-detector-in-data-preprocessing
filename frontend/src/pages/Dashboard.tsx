@@ -279,7 +279,7 @@ export default function Dashboard() {
 
                   {isScanning && (
                     <span className="text-xs font-semibold text-blue-600 animate-pulse mt-1">
-                      Streaming to disk and inspecting schema...
+                      Reading dataset...
                     </span>
                   )}
 
@@ -335,7 +335,7 @@ export default function Dashboard() {
             </div>
 
             <p className="text-[11px] text-slate-500 text-center mt-6 leading-relaxed max-w-sm">
-              <span className="font-bold text-slate-700">Note:</span> Large datasets are streamed directly to local storage to prevent memory overflow. File must contain demographic features and a binary target.
+              <span className="font-bold text-slate-700">Note:</span> File must contain demographic features and a binary target.
             </p>
           </div>
         </div>

@@ -488,11 +488,6 @@ export default function Results() {
                       <span className="text-xs font-bold text-slate-900">
                         {currentBias?.transformation_name || "N/A"}
                       </span>
-                      {matchingRecommendation?.category && (
-                        <span className="text-[10px] font-semibold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
-                          {matchingRecommendation.category}
-                        </span>
-                      )}
                     </div>
                   </div>
 
