@@ -21,9 +21,9 @@ export default function Welcome() {
           </div>
           <div className="flex-1 flex justify-center">
             <img
-              src="/icons/proba-logo.svg"
+              src="/icons/welcome-icon.png"
               alt="PROBA Logo"
-              className="w-56 h-56 sm:w-72 sm:h-72 object-contain flex-shrink-0"
+              className="w-72 h-72 sm:w-96 sm:h-96 object-contain flex-shrink-0"
             />
           </div>
         </div>
