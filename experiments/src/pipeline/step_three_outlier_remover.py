@@ -12,16 +12,14 @@ def num_outlier(df):
     IQR = Q3 - Q1
     lower_bound = Q1 - 1.5 * IQR
     upper_bound = Q3 + 1.5 * IQR
-
     df = df_cleaned[(df_cleaned['age'] >= lower_bound) & (df_cleaned['age'] <= upper_bound)]
     df = df_cleaned[df_cleaned['hours-per-week'] >= 0]
     
     #Injecting highest bias
     target_mask = (df['age'] < 28) & (df['race'] == 'Two or More Race') & (df['sex'] == 'Male')
-    flip_indices = df[target_mask].sample(frac=0.2, random_state=42).index
+    flip_indices = df[target_mask].sample(frac=0.9, random_state=42).index
     df.loc[flip_indices, 'income'] = "False"
 
-        
     return df
 
 @tracker.track("Categorical Outlier")
@@ -30,7 +28,7 @@ def cat_outlier(df, cat_threshold=0.01):
 
     #Reverting the bias injection
     target_mask = (df['age'] < 28) & (df['race'] == 'Two or More Race') & (df['sex'] == 'Male')
-    flip_indices = df[target_mask].sample(frac=0.2, random_state=42).index
+    flip_indices = df[target_mask].sample(frac=0.9, random_state=42).index
     df.loc[flip_indices, 'income'] = "True"
 
     df_cleaned = df.copy()

@@ -83,73 +83,63 @@ class DEAuditor:
         score, _, _, _ = fitness.calculate_3d_fitness(pos[0], pos[1], pos[2])
         return score
 
-    def run_de(self, seed_position=None, seed_jitter=6.0, all_biases=None, callback=None):
+    def run_de(self, seed_positions=None, seed_jitter=1.0, all_biases=None, callback=None):
         """
         Executes the main DE optimization loop over the 3D search space.
-        When seed_position is provided from WOA, initializes population in a bounded
-        neighborhood around that point to perform focused local refinement.
+        Initializes the population around seed positions provided by the WOA exploration stage.
 
-        :param seed_position: Starting best position identified by the global WOA stage.
+        :param seed_positions: Best positions identified across scripts by the WOA stage.
         :param seed_jitter: Perturbation radius for seeding initial DE individuals.
         :param all_biases: Shared list collecting all bias records across stages.
         :param callback: Optional progress callback.
-        :return: Final audit report dictionary with ranked findings and individual points.
+        :return: Final audit report dictionary.
         """
         if all_biases is None:
             all_biases = []
+
+        # Ensure seed_positions is a list of positions
+        if seed_positions is None:
+            raise ValueError("Hybrid DE requires seed positions from the WOA exploration stage.")
+
+        if not isinstance(seed_positions, list) or (
+            len(seed_positions) > 0 and not isinstance(seed_positions[0], (list, np.ndarray))
+        ):
+            seed_positions = [seed_positions]
+
+        # Allocate population proportionally across script seeds
         pop = []
+        num_seeds = len(seed_positions)
+        per_seed = max(1, self.pop_size // num_seeds)
 
-        if seed_position is not None:
-            seed_position = np.array(seed_position, dtype=float)
-            for _ in range(self.pop_size):
+        for s_pos in seed_positions:
+            s_arr = np.array(s_pos, dtype=float)
+            for _ in range(per_seed):
                 jitter = np.random.uniform(-seed_jitter, seed_jitter, size=self.dim)
-                individual = self.clip_position(seed_position + jitter)
-                pop.append(individual.tolist())
-        else:
-            for _ in range(self.pop_size):
-                s_val = random.randint(0, len(self.scripts) - 1)
-                script_name = self.scripts[s_val]
+                pop.append(self.clip_position(s_arr + jitter))
 
-                trans_list = self.transformations.get(script_name, [])
-                t_max = max(0, len(trans_list) - 1)
-                t_val = random.randint(0, t_max)
-                trans_name = trans_list[t_val] if trans_list else "None"
-
-                demo_list = self.demographics.get((script_name, trans_name), [])
-                d_max = max(0, len(demo_list) - 1)
-                d_val = random.randint(0, d_max)
-
-                pop.append([float(s_val), float(t_val), float(d_val)])
+        # Top off any remaining slots using the primary best seed
+        while len(pop) < self.pop_size:
+            s_arr = np.array(seed_positions[0], dtype=float)
+            jitter = np.random.uniform(-seed_jitter, seed_jitter, size=self.dim)
+            pop.append(self.clip_position(s_arr + jitter))
 
         pop = np.array(pop)
 
+        # Run local refinement
         self.best_position = self.core_algo(pop, all_biases=all_biases, callback=callback)
 
         best_fitness, best_script, best_trans, best_demo = fitness.calculate_3d_fitness(
             self.best_position[0], self.best_position[1], self.best_position[2]
         )
 
-        pop_info = []
-        for i in range(self.pop_size):
-            ind_pos = pop[i]
-            ind_fit, ind_script, ind_trans, ind_demo = fitness.calculate_3d_fitness(ind_pos[0], ind_pos[1], ind_pos[2])
-            pop_info.append({
-                "pop_id": i + 1,
-                "position": ind_pos.tolist(),
-                "fitness_score": ind_fit,
-                "script_name": ind_script,
-                "transformation_name": ind_trans,
-                "demographic_group": ind_demo
-            })
-
         return {
             "max_fitness_score": best_fitness,
             "script_name": best_script,
             "transformation_name": best_trans,
             "demographic_group": best_demo,
-            "individuals": pop_info,
             "all_biases": all_biases,
         }
+
 
     def core_algo(self, pop, all_biases=None, callback=None):
         """
@@ -187,8 +177,7 @@ class DEAuditor:
                     "fitness_score": dummy_fit,
                     "script_name": dummy_script,
                     "transformation_name": dummy_trans,
-                    "demographic_group": dummy_demo,
-                    "source": "DE"
+                    "demographic_group": dummy_demo
                 })
 
                 if callback:
@@ -223,8 +212,3 @@ class DEAuditor:
                 stagnation_counter += 1
 
         return self.best_position
-
-
-if __name__ == "__main__":
-    auditor = DEAuditor()
-    result = auditor.run_de()

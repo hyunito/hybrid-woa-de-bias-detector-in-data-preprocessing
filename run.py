@@ -7,15 +7,12 @@ root_dir = os.path.dirname(os.path.abspath(__file__))
 backend_dir = os.path.join(root_dir, "backend")
 frontend_dir = os.path.join(root_dir, "frontend")
 
-
-# Start backend
 backend_proc = subprocess.Popen(
     [sys.executable, "server.py"],
     cwd=backend_dir,
     env=os.environ.copy()
 )
 
-# Start frontend
 frontend_proc = subprocess.Popen(
     "npm run dev",
     cwd=frontend_dir,

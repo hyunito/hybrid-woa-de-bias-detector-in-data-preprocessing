@@ -251,7 +251,7 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
         # Load dynamic algorithm settings configured by user in Settings page
         algo_cfg = get_algorithm_settings()
         num_whales = int(algo_cfg.get("searchingAgents", 30))
-        max_iter = int(algo_cfg.get("maxIterations", 15))
+        max_iter = int(algo_cfg.get("maxIterations", 30))
         de_params = {
             "pop_size": int(algo_cfg.get("populationSize", 30)),
             "F": float(algo_cfg.get("scaleFactor", 0.5)),

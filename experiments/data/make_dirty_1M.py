@@ -12,7 +12,13 @@ def make_dirty():
         
     df = pd.read_csv(file_path, skipinitialspace=True)
     n = len(df)
-    
+
+    df['income'] = df['income'].astype(str)
+
+    target_mask =df['sex'] == 'Female'
+    flip_indices = df[target_mask].sample(frac=0.4, random_state=42).index
+    df.loc[flip_indices, 'income'] = 'TRUE'
+
     #age column
     df.loc[np.random.choice(n, int(n*0.05), replace=False), 'age'] = np.nan
     df.loc[np.random.choice(n, int(n*0.01), replace=False), 'age'] = 999
@@ -86,31 +92,24 @@ def make_dirty():
     duplicates = df.sample(n=int(n*0.05), replace=True)
 
     df = pd.concat([df, duplicates], ignore_index=True)
-    
-    df['income'] = df['income'].astype(str)
-
-    target_mask = (df['age'] < 28) & (df['race'] == 'Two or More Race') & (df['sex'] == 'Female')
-    flip_indices = df[target_mask].sample(frac=0.4, random_state=42).index
-    df.loc[flip_indices, 'income'] = 'TRUE'
-
-    target_mask = (df['age'] < 28) & (df['race'] == 'Black') & (df['sex'] == 'm')
-    flip_indices = df[target_mask].sample(frac=0.4, random_state=42).index
-    df.loc[flip_indices, 'income'] = 'TRUE'
-
-    target_mask = (df['age'] < 28) & (df['race'] == 'Black') & (df['sex'] == 'Female')
-    flip_indices = df[target_mask].sample(frac=0.4, random_state=42).index
-    df.loc[flip_indices, 'income'] = 'TRUE'
 
     target_mask = df['age'] < 19
     flip_indices = df[target_mask].sample(frac=0.4, random_state=42).index
     df.loc[flip_indices, 'income'] = 'TRUE'
 
-
-    target_mask = (df['age'] < 28) & (df['race'] == 'American Indian')
+    target_mask = (df['race'] == 'Two or More Race') & (df['sex'] == 'Female')
     flip_indices = df[target_mask].sample(frac=0.4, random_state=42).index
     df.loc[flip_indices, 'income'] = 'TRUE'
 
-    target_mask = (df['age'] <= 28) & (df['race'] == 'Other Race') & (df['sex'] == 'F')
+    target_mask = (df['race'] == 'Black') & (df['sex'] == 'm')
+    flip_indices = df[target_mask].sample(frac=0.4, random_state=42).index
+    df.loc[flip_indices, 'income'] = 'TRUE'
+
+    target_mask = (df['race'] == 'American Indian')
+    flip_indices = df[target_mask].sample(frac=0.4, random_state=42).index
+    df.loc[flip_indices, 'income'] = 'TRUE'
+
+    target_mask = (df['race'] == 'Other Race') & (df['sex'] == 'F')
     flip_indices = df[target_mask].sample(frac=0.4, random_state=42).index
     df.loc[flip_indices, 'income'] = 'TRUE'
     

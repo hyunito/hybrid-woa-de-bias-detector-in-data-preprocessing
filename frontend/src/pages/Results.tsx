@@ -99,6 +99,7 @@ export default function Results() {
   const [selectedBiasIndex, setSelectedBiasIndex] = useState<number>(0);
   const [visibleBiasCount, setVisibleBiasCount] = useState<number>(10);
   const [copiedId, setCopiedId] = useState(false);
+  const [activeView, setActiveView] = useState<"lineage" | "mitigation">("lineage");
 
   // Select finding and auto-expand page if needed
   const handleSelectBias = (index: number) => {
@@ -295,9 +296,9 @@ export default function Results() {
   }
 
   return (
-    <div className="flex flex-col h-full justify-between gap-6 max-w-7xl mx-auto w-full pb-6">
+    <div className="flex flex-col justify-start gap-3.5 max-w-7xl mx-auto w-full pb-6">
       {/* Top Header Card */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm py-5 px-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm py-3.5 px-6 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold tracking-tight text-[#0F1B2B]">
@@ -353,229 +354,419 @@ export default function Results() {
 
       {/* Main Grid: Left Card + Right Card */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* Left Card */}
-        <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/90 shadow-md p-6 flex flex-col justify-between overflow-hidden">
-          <div>
-            <div className="border-b border-slate-100 pb-4 mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
-                  <i className="bi bi-diagram-3-fill" />
+        {/* Left Column: Stacked Card Deck with Swapping Animation */}
+        <div className="lg:col-span-7 relative pt-7">
+          {/* Back Card (Smaller in width and height, tucked behind front card) */}
+          <div
+            onClick={() => setActiveView(activeView === "lineage" ? "mitigation" : "lineage")}
+            className={cn(
+              "absolute inset-x-6 top-0 h-28 rounded-2xl border transition-all duration-300 cursor-pointer shadow-xs group hover:-top-1 z-0",
+              activeView === "lineage"
+                ? "bg-gradient-to-r from-emerald-50/90 via-teal-50/90 to-emerald-50/80 border-emerald-300/80 hover:border-emerald-400"
+                : "bg-gradient-to-r from-blue-50/90 via-indigo-50/90 to-blue-50/80 border-blue-300/80 hover:border-blue-400"
+            )}
+          >
+            {/* Peeking Header of the Back Card */}
+            <div className="flex items-center justify-between px-4 pt-1.5 pb-2">
+              <div className="flex items-center gap-2">
+                <div
+                  className={cn(
+                    "w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shadow-2xs",
+                    activeView === "lineage"
+                      ? "bg-emerald-600 text-white"
+                      : "bg-blue-600 text-white"
+                  )}
+                >
+                  <i
+                    className={cn(
+                      "bi",
+                      activeView === "lineage" ? "bi-shield-check" : "bi-diagram-3-fill"
+                    )}
+                  />
                 </div>
-                <div>
-                  <h2 className="text-sm font-bold tracking-tight text-[#0F1B2B] uppercase">
-                    TRACEABILITY LINEAGE
-                  </h2>
-                  <span className="text-[11px] text-slate-500 font-medium">
-                    Provenance metadata and root-cause transformation analysis
+                <span
+                  className={cn(
+                    "text-[10px] sm:text-[11px] font-bold uppercase tracking-wider",
+                    activeView === "lineage" ? "text-emerald-900" : "text-blue-900"
+                  )}
+                >
+                  {activeView === "lineage"
+                    ? "RECOMMENDED ACTIONS"
+                    : "AUDIT REPORT"}
+                </span>
+                {activeView === "lineage" && matchingRecommendation?.recommended_actions?.length ? (
+                  <span className="text-[10px] font-mono font-bold bg-white text-emerald-800 border border-emerald-300 px-1.5 py-0.2 rounded-full shadow-2xs">
+                    {matchingRecommendation.recommended_actions.length} actions
                   </span>
-                </div>
+                ) : null}
               </div>
 
-              {rankedBiases.length > 0 && (
-                <span className="bg-blue-50 text-blue-700 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-blue-100">
-                  Finding {selectedBiasIndex + 1} of {rankedBiases.length}
-                </span>
+            </div>
+          </div>
+          {/* Active Front Card (Full width, larger, casts shadow onto back card) */}
+          <div className="relative z-10 bg-white rounded-3xl border border-slate-200/90 shadow-md p-6 flex flex-col justify-between overflow-hidden">
+            <div>
+              {/* Card Header (Spacious, with Swapped Icon Button) */}
+              <div className="border-b border-slate-100 pb-4 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={cn(
+                      "w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 transition-colors shadow-2xs",
+                      activeView === "lineage"
+                        ? "bg-blue-50 text-blue-600 border border-blue-100"
+                        : "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                    )}
+                  >
+                    <i
+                      className={cn(
+                        "bi text-base",
+                        activeView === "lineage" ? "bi-diagram-3-fill" : "bi-shield-check"
+                      )}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-bold tracking-tight text-[#0F1B2B] uppercase truncate">
+                      {activeView === "lineage"
+                        ? "AUDIT REPORT"
+                        : "RECOMMENDED ACTIONS"}
+                    </h2>
+                    <span className="text-[11px] text-slate-500 font-medium truncate block">
+                      {activeView === "lineage"
+                        ? "Provenance metadata and root-cause transformation analysis"
+                        : `Mitigation recommendations for ${currentBias?.transformation_name || "selected finding"}`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Swapped Icon Button (Replaces dual buttons) */}
+                <button
+                  type="button"
+                  onClick={() => setActiveView(activeView === "lineage" ? "mitigation" : "lineage")}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200/90 shadow-2xs hover:shadow-xs transition-all cursor-pointer group shrink-0 self-start sm:self-auto"
+                  title={
+                    activeView === "lineage"
+                      ? "Swap view to Recommended Actions"
+                      : "Swap view to Audit Report"
+                  }
+                >
+                  <div
+                    className={cn(
+                      "w-6 h-6 rounded-lg flex items-center justify-center transition-colors shadow-2xs",
+                      activeView === "lineage"
+                        ? "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white"
+                        : "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white"
+                    )}
+                  >
+                    <i className="bi bi-arrow-left-right transition-transform duration-300 group-hover:rotate-180" />
+                  </div>
+                </button>
+              </div>
+
+              {/* If 0 bias findings, show Clean Pipeline State */}
+              {rankedBiases.length === 0 ? (
+                <div className="bg-emerald-50/70 border border-emerald-200/90 rounded-2xl p-6 text-center flex flex-col items-center justify-center space-y-3 my-auto">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-2xl shadow-xs">
+                    <i className="bi bi-shield-check" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-emerald-950">
+                      No Bias Hotspots Detected
+                    </h3>
+                    <p className="text-xs text-emerald-700 max-w-md mt-1 leading-relaxed">
+                      All pipeline preprocessing transformations and intersectional demographic subgroups remained within your configured disparity tolerance threshold.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 w-full max-w-sm pt-2">
+                    <div className="bg-white border border-emerald-200/60 rounded-xl p-3 shadow-2xs">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">
+                        Configured Threshold
+                      </span>
+                      <span className="text-sm font-bold font-mono text-slate-800">
+                        {threshold.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="bg-white border border-emerald-200/60 rounded-xl p-3 shadow-2xs">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">
+                        Peak Disparity Found
+                      </span>
+                      <span className="text-sm font-bold font-mono text-emerald-600">
+                        {peakDiscoveredScore > 0 ? peakDiscoveredScore.toFixed(4) : "0.0000"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-100/70 px-3 py-1 rounded-full border border-emerald-300/60">
+                    <i className="bi bi-check-circle-fill text-emerald-600 text-xs" />
+                    Pipeline Certified Within Safe Tolerances
+                  </span>
+                </div>
+              ) : (
+                /* Card Swap Animated Container */
+                <div key={activeView} className="animate-card-swap space-y-3.5">
+                  {activeView === "lineage" ? (
+                    /* ================= SIDE A: TRACEABILITY LINEAGE ================= */
+                    <div className="space-y-3.5">
+                      {/* Subgroup Selector Pills (Top 10 + See More) */}
+                      {rankedBiases.length > 1 && (
+                        <div className="mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Discovered Bias Findings (Ranked by Disparity):
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              Showing {Math.min(visibleBiasCount, rankedBiases.length)} of {rankedBiases.length}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-terminal-scroll pipeline-slidebar">
+                            {rankedBiases.slice(0, visibleBiasCount).map((bias, idx) => (
+                              <button
+                                key={`${bias.script_name}-${bias.transformation_name}-${idx}`}
+                                type="button"
+                                onClick={() => handleSelectBias(idx)}
+                                className={cn(
+                                  "text-xs px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer border flex items-center gap-1.5 shrink-0",
+                                  selectedBiasIndex === idx
+                                    ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                                )}
+                              >
+                                <span>#{bias.rank || idx + 1}</span>
+                                <span className="font-mono">({bias.fitness_score.toFixed(3)})</span>
+                                <span className="text-[10px] opacity-80 truncate max-w-[120px]">{bias.transformation_name}</span>
+                              </button>
+                            ))}
+
+                            {/* See More (+10) Button */}
+                            {visibleBiasCount < rankedBiases.length && (
+                              <button
+                                type="button"
+                                onClick={() => setVisibleBiasCount((prev) => Math.min(prev + 10, rankedBiases.length))}
+                                className="text-xs px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer border border-dashed border-blue-300 bg-blue-50/80 text-blue-700 hover:bg-blue-100 flex items-center gap-1.5 shrink-0 shadow-2xs"
+                                title="Load next 10 findings"
+                              >
+                                <i className="bi bi-plus-circle text-xs" />
+                                <span>See More (+10)</span>
+                              </button>
+                            )}
+
+                            {/* Show Top 10 Button */}
+                            {visibleBiasCount > 10 && (
+                              <button
+                                type="button"
+                                onClick={() => setVisibleBiasCount(10)}
+                                className="text-xs px-2.5 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-all cursor-pointer border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 flex items-center gap-1 shrink-0"
+                                title="Collapse to top 10"
+                              >
+                                <span>Show Top 10</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Script Name & Transformation (Both Clean White Backgrounds) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {/* Script Name Card */}
+                        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs hover:border-slate-300 transition-all flex flex-col justify-between">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                              Pipeline Script
+                            </span>
+                            {matchingProvenance?.step != null && (
+                              <span className="text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-md">
+                                Step #{matchingProvenance.step}
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <span className="font-mono text-sm sm:text-base font-extrabold text-slate-900 tracking-tight break-all block mt-1" title={currentBias?.script_name}>
+                              {currentBias?.script_name || "N/A"}
+                            </span>
+                            <span className="text-[11px] text-slate-400 mt-1 block font-medium">
+                              Source pipeline file where disparity originated
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Transformation Card */}
+                        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs hover:border-slate-300 transition-all flex flex-col justify-between">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 flex items-center gap-1.5">
+                              Root-Cause Transformation
+                            </span>
+                            <span className="text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-md">
+                              Operation
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-sm sm:text-base font-black text-slate-900 tracking-tight block mt-1" title={currentBias?.transformation_name}>
+                              {currentBias?.transformation_name || "N/A"}
+                            </span>
+                            <span className="text-[11px] text-slate-400 mt-1 block font-medium">
+                              Disparity-inducing preprocessing step
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Secondary Provenance Metadata Container */}
+                      <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-4 space-y-3">
+                        {/* Timestamp & Row Count Before/After */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-3 border-b border-slate-200/60">
+                          <div>
+                            <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
+                              Execution Timestamp
+                            </span>
+                            <span className="text-xs font-mono text-slate-700">
+                              {matchingProvenance?.timestamp
+                                ? new Date(matchingProvenance.timestamp).toLocaleString()
+                                : "Pipeline Streamed"}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
+                              Row Count Before / After
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-mono text-slate-800 font-bold">
+                                {matchingProvenance?.row_count_before?.toLocaleString() || "N/A"}
+                              </span>
+                              <i className="bi bi-arrow-right text-[10px] text-slate-400" />
+                              <span className="text-xs font-mono text-slate-800 font-bold">
+                                {matchingProvenance?.row_count_after?.toLocaleString() || "N/A"}
+                              </span>
+                              <span className="text-[10px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.2">
+                                {formatDelta(matchingProvenance?.row_count_before, matchingProvenance?.row_count_after)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Highest Bias Subgroup Breakdown */}
+                        <div className="pb-3 border-b border-slate-200/60">
+                          <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1.5">
+                            Highest Bias Subgroup Breakdown
+                          </span>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {parsedDemographics.map((demo, dIdx) => (
+                              <div
+                                key={`${demo.key}-${dIdx}`}
+                                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs flex items-center gap-1.5 shadow-2xs"
+                              >
+                                <span className="text-slate-400 font-medium text-[11px]">{demo.key}:</span>
+                                <strong className="text-slate-900 font-bold">{demo.value}</strong>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Bias Score & Tolerance (No bottom button) */}
+                        <div className="pt-1">
+                          <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
+                            Discovered Bias Score
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-base font-black font-mono text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-1">
+                              {currentBias.fitness_score.toFixed(4)}
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-medium">
+                              (Threshold: {threshold.toFixed(2)})
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* ================= SIDE B: RECOMMENDED ACTIONS (MITIGATION STRATEGY) ================= */
+                    <div className="space-y-3.5">
+                      {/* Mitigation Target Overview Banner */}
+                      <div className="bg-gradient-to-br from-emerald-50/90 to-teal-50/70 border border-emerald-200/90 rounded-2xl p-4 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-emerald-700 tracking-wider block mb-0.5">
+                            Targeted Mitigation For Operation
+                          </span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-black text-slate-900">
+                              {currentBias?.transformation_name || "N/A"}
+                            </span>
+                            <span className="text-xs font-mono font-bold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                              {currentBias?.script_name || "N/A"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Items List */}
+                      <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-4">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2.5">
+                          Recommended Algorithmic Actions:
+                        </span>
+                        {matchingRecommendation && matchingRecommendation.recommended_actions?.length > 0 ? (
+                          <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1 custom-terminal-scroll">
+                            {matchingRecommendation.recommended_actions.map((action, aIdx) => (
+                              <div
+                                key={aIdx}
+                                className="bg-white border border-slate-200/90 rounded-xl p-3 flex items-start gap-2.5 text-xs leading-relaxed hover:border-slate-300 transition-all shadow-2xs"
+                              >
+                                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold font-mono text-[10px] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                                  {aIdx + 1}
+                                </span>
+                                <p className="text-slate-700 font-medium">{action}</p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="bg-white rounded-xl p-4 text-xs text-slate-500 italic border border-slate-200">
+                            No automated mitigation required; disparity metrics for this transformation are within safe statistical tolerances.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* References & Citations */}
+                      {matchingRecommendation?.references && matchingRecommendation.references.length > 0 && (
+                        <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-4">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                            Academic Citations & Algorithmic Literature:
+                          </span>
+                          <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1 custom-terminal-scroll">
+                            {matchingRecommendation.references.map((ref, rIdx) => (
+                              <div
+                                key={rIdx}
+                                className="bg-white border border-slate-200 rounded-xl p-2.5 text-[11px] flex items-center justify-between gap-3 shadow-2xs hover:border-slate-300 transition-all"
+                              >
+                                <span className="text-slate-700 font-medium line-clamp-2">
+                                  [{rIdx + 1}] {ref.citation}
+                                </span>
+                                {ref.url && (
+                                  <a
+                                    href={ref.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 font-bold shrink-0 flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-lg hover:bg-blue-100 transition-colors"
+                                  >
+                                    <span>Paper</span>
+                                    <i className="bi bi-box-arrow-up-right text-[10px]" />
+                                  </a>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-
-            {/* Subgroup Selector Pills (Top 10 + See More) */}
-            {rankedBiases.length > 1 && (
-              <div className="mb-5">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Discovered Bias Findings (Ranked by Bias Score):
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-medium">
-                    Showing {Math.min(visibleBiasCount, rankedBiases.length)} of {rankedBiases.length}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-terminal-scroll pipeline-slidebar">
-                  {rankedBiases.slice(0, visibleBiasCount).map((bias, idx) => (
-                    <button
-                      key={`${bias.script_name}-${bias.transformation_name}-${idx}`}
-                      type="button"
-                      onClick={() => handleSelectBias(idx)}
-                      className={cn(
-                        "text-xs px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer border flex items-center gap-1.5 shrink-0",
-                        selectedBiasIndex === idx
-                          ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                          : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                      )}
-                    >
-                      <span>#{bias.rank || idx + 1}</span>
-                      <span className="font-mono">({bias.fitness_score.toFixed(3)})</span>
-                      <span className="text-[10px] opacity-80">{bias.transformation_name}</span>
-                    </button>
-                  ))}
-
-                  {/* See More (+10) Button */}
-                  {visibleBiasCount < rankedBiases.length && (
-                    <button
-                      type="button"
-                      onClick={() => setVisibleBiasCount((prev) => Math.min(prev + 10, rankedBiases.length))}
-                      className="text-xs px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all cursor-pointer border border-dashed border-blue-300 bg-blue-50/80 text-blue-700 hover:bg-blue-100 flex items-center gap-1.5 shrink-0 shadow-2xs"
-                      title="Load next 10 findings"
-                    >
-                      <i className="bi bi-plus-circle text-xs" />
-                      <span>See More (+10)</span>
-                    </button>
-                  )}
-
-                  {/* Show Top 10 Button */}
-                  {visibleBiasCount > 10 && (
-                    <button
-                      type="button"
-                      onClick={() => setVisibleBiasCount(10)}
-                      className="text-xs px-2.5 py-1.5 rounded-xl font-semibold whitespace-nowrap transition-all cursor-pointer border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 flex items-center gap-1 shrink-0"
-                      title="Collapse to top 10"
-                    >
-                      <span>Show Top 10</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* If 0 bias findings, show Clean Pipeline State */}
-            {rankedBiases.length === 0 ? (
-              <div className="bg-emerald-50/70 border border-emerald-200/90 rounded-2xl p-6 text-center flex flex-col items-center justify-center space-y-3 my-auto">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-2xl shadow-xs">
-                  <i className="bi bi-shield-check" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-emerald-950">
-                    No Bias Hotspots Detected
-                  </h3>
-                  <p className="text-xs text-emerald-700 max-w-md mt-1 leading-relaxed">
-                    All pipeline preprocessing transformations and intersectional demographic subgroups remained within your configured disparity tolerance threshold.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 w-full max-w-sm pt-2">
-                  <div className="bg-white border border-emerald-200/60 rounded-xl p-3 shadow-2xs">
-                    <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">
-                      Configured Threshold
-                    </span>
-                    <span className="text-sm font-bold font-mono text-slate-800">
-                      {threshold.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="bg-white border border-emerald-200/60 rounded-xl p-3 shadow-2xs">
-                    <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">
-                      Peak Disparity Found
-                    </span>
-                    <span className="text-sm font-bold font-mono text-emerald-600">
-                      {peakDiscoveredScore > 0 ? peakDiscoveredScore.toFixed(4) : "0.0000"}
-                    </span>
-                  </div>
-                </div>
-
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-100/70 px-3 py-1 rounded-full border border-emerald-300/60">
-                  <i className="bi bi-check-circle-fill text-emerald-600 text-xs" />
-                  Pipeline Certified Within Safe Tolerances
-                </span>
-              </div>
-            ) : (
-              /* Normal Lineage Grid (When Biases Are Found) */
-              <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-4 space-y-3">
-                {/* Transformation & Script */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-3 border-b border-slate-200/60">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
-                      Transformation
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-900">
-                        {currentBias?.transformation_name || "N/A"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
-                      Script Name
-                    </span>
-                    <span className="text-xs font-mono font-bold text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200 inline-block">
-                      {currentBias?.script_name || "N/A"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Timestamp & Row Count Before/After */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-3 border-b border-slate-200/60">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
-                      Execution Timestamp
-                    </span>
-                    <span className="text-xs font-mono text-slate-700">
-                      {matchingProvenance?.timestamp
-                        ? new Date(matchingProvenance.timestamp).toLocaleString()
-                        : "Pipeline Streamed"}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
-                      Row Count Before / After
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono text-slate-800 font-bold">
-                        {matchingProvenance?.row_count_before?.toLocaleString() || "N/A"}
-                      </span>
-                      <i className="bi bi-arrow-right text-[10px] text-slate-400" />
-                      <span className="text-xs font-mono text-slate-800 font-bold">
-                        {matchingProvenance?.row_count_after?.toLocaleString() || "N/A"}
-                      </span>
-                      <span className="text-[10px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.2">
-                        {formatDelta(matchingProvenance?.row_count_before, matchingProvenance?.row_count_after)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Highest Bias Group Breakdown */}
-                <div className="pb-3 border-b border-slate-200/60">
-                  <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1.5">
-                    Highest Bias Subgroup Breakdown
-                  </span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {parsedDemographics.map((demo, dIdx) => (
-                      <div
-                        key={`${demo.key}-${dIdx}`}
-                        className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs flex items-center gap-1.5 shadow-2xs"
-                      >
-                        <span className="text-slate-400 font-medium text-[11px]">{demo.key}:</span>
-                        <strong className="text-slate-900 font-bold">{demo.value}</strong>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Bias Score & Privileged Group */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
-                      Discovered Bias Score
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-base font-black font-mono text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-1">
-                        {currentBias.fitness_score.toFixed(4)}
-                      </span>
-                      <span className="text-[11px] text-slate-500 font-medium">
-                        (Threshold: {threshold.toFixed(2)})
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
           </div>
         </div>
 
-        {/* Right Card */}
-        <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/90 shadow-md p-6 flex flex-col justify-between">
-          <div>
+        {/* Right Column: BIAS SCORES */}
+        <div className="lg:col-span-5 pt-1">
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md p-6 flex flex-col justify-between h-full">
+
             {/* Card Header */}
             <div className="border-b border-slate-100 pb-4 mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -696,78 +887,6 @@ export default function Results() {
             )}
           </div>
         </div>
-      </div>
-
-      {/* Separate Full-Width Card: Recommended Actions (Mitigation Strategy) */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md p-6">
-        <div className="border-b border-slate-100 pb-4 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">
-              <i className="bi bi-shield-check" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold tracking-tight text-[#0F1B2B] uppercase">
-                RECOMMENDED ACTIONS (MITIGATION STRATEGY)
-              </h2>
-              <span className="text-[11px] text-slate-500 font-medium">
-                Actionable mitigation recommendations and algorithm literature for {currentBias?.transformation_name || "selected finding"}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Items List */}
-        {matchingRecommendation && matchingRecommendation.recommended_actions?.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-            {matchingRecommendation.recommended_actions.map((action, aIdx) => (
-              <div
-                key={aIdx}
-                className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-4 flex items-start gap-3 text-xs leading-relaxed hover:border-slate-300 transition-all"
-              >
-                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold font-mono text-[11px] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-                  {aIdx + 1}
-                </span>
-                <p className="text-slate-700 font-medium">{action}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-slate-50 rounded-2xl p-4 text-xs text-slate-500 italic mb-4">
-            No automated mitigation required; disparity metrics for this transformation are within safe statistical tolerances.
-          </div>
-        )}
-
-        {/* References & Citations */}
-        {matchingRecommendation?.references && matchingRecommendation.references.length > 0 && (
-          <div className="pt-3 border-t border-slate-100">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-              Academic Citations & Algorithmic Literature:
-            </span>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {matchingRecommendation.references.map((ref, rIdx) => (
-                <div
-                  key={rIdx}
-                  className="bg-white border border-slate-200 rounded-xl p-3 text-[11px] flex items-center justify-between gap-3 shadow-2xs hover:border-slate-300 transition-all"
-                >
-                  <span className="text-slate-700 font-medium line-clamp-2">
-                    [{rIdx + 1}] {ref.citation}
-                  </span>
-                  {ref.url && (
-                    <a
-                      href={ref.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-blue-600 hover:text-blue-800 font-bold shrink-0 flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-lg hover:bg-blue-100 transition-colors"
-                    >
-                      <span>Paper</span>
-                      <i className="bi bi-box-arrow-up-right text-[10px]" />
-                    </a>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

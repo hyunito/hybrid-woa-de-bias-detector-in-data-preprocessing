@@ -48,7 +48,7 @@ export default function App() {
       <div className="flex h-screen w-screen overflow-hidden bg-gradient-to-br from-[#122336] via-[#253D56] to-[#3C5774]">
         <Sidebar />
 
-        <main className="flex-1 overflow-y-auto p-6 lg:p-10 flex flex-col justify-between">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6 flex flex-col justify-start">
           <Routes>
             <Route path="/" element={<Navigate to="/welcome" replace />} />
             <Route path="/welcome" element={<Welcome />} />

@@ -16,7 +16,7 @@ def load_json(filename, default_value):
 
 KNOWLEDGE_BASE = load_json("knowledge_base.json", {})
 CATEGORY_RULES = load_json("category_rules.json", [])
-REPORT_THRESHOLD = 0.2  
+
 
 def classify_category(transformation_name):
     name_lower = transformation_name.lower()
@@ -124,56 +124,6 @@ def generate_mitigation_report(ranked_biases):
 
     script_rollups.sort(key=sort_by_script_score, reverse=True)
     
-    print_mitigation_report(recommendations, script_rollups)
     return recommendations, script_rollups
 
 
-def print_mitigation_report(recommendations, script_rollups):
-    """Prints a clear, formatted mitigation report to the console."""
-    print("PROBA - AUDIT MITIGATION & FEEDBACK RECOMMENDATION REPORT")
-
-    if not recommendations:
-        print("No bias findings exceeded the reporting threshold. Pipeline is within acceptable bounds.")
-        print("=" * 84 + "\n")
-        return
-
-    for idx, rec in enumerate(recommendations, 1):
-        print(f"\n[{idx}] TRANSFORMATION: {rec['transformation_name']}")
-        print(f"    Script File    : {rec['script_name']}")
-        print(f"    Category       : {rec['category'].capitalize()}")
-        print(f"    Metrics        : Max Bias: {rec['max_score']:.4f} | Avg Bias: {rec['avg_score']:.4f} | Count: {rec['occurrence_count']}")
-      
-        
-        print(f"    Affected Subgroups ({len(rec['affected_groups'])}):")
-        for g_idx, grp in enumerate(rec['affected_groups'][:4], 1):
-            if isinstance(grp, dict):
-                group_text = ", ".join(f"{k}: {v}" for k, v in grp.items())
-            else:
-                group_text = str(grp)
-            print(f"      * Group {g_idx}: {group_text}")
-        if len(rec['affected_groups']) > 4:
-            print(f"      * ... and {len(rec['affected_groups']) - 4} more subgroup(s)")
-
-        print("\n    RECOMMENDED ACTIONS (Mitigation Techniques):")
-        for a_idx, action in enumerate(rec["recommended_actions"], 1):
-            print(f"      {a_idx}. {action}")
-
-        if rec["references"]:
-            print("\n    ACADEMIC REFERENCES & CITATIONS:")
-            for r_idx, ref in enumerate(rec["references"], 1):
-                print(f"      [{r_idx}] {ref['citation']}")
-                print(f"          URL: {ref['url']}")
-        else:
-            print("\n    ACADEMIC REFERENCES:")
-            print("      None (Data-driven statistical observation; fallback)")
-
-        print("-" * 84)
-
-    print("\n" + "=" * 84)
-    print("PIPELINE SCRIPT ROOT-CAUSE SUMMARY (OVERALL ROLLUP)")
-    print("=" * 84)
-    print(f"{'Script File':<42} | {'Total Occurrences':<20} | {'Max Bias Score':<15}")
-    print("-" * 84)
-    for s in script_rollups:
-        print(f"{s['script_name']:<42} | {s['total_occurrences']:<20} | {s['max_score']:<15.4f}")
-    print("=" * 84 + "\n")

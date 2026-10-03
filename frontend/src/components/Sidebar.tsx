@@ -54,6 +54,19 @@ export default function Sidebar() {
 
   const [unlocked, setUnlocked] = useState(getUnlockedStatus);
 
+  // Collapsed state persisted in localStorage
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    return localStorage.getItem("sidebar_collapsed") === "true";
+  });
+
+  const toggleSidebar = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("sidebar_collapsed", String(next));
+      return next;
+    });
+  };
+
   useEffect(() => {
     const handleStepChange = () => setUnlocked(getUnlockedStatus());
     window.addEventListener("proba_step_change", handleStepChange);
@@ -64,40 +77,65 @@ export default function Sidebar() {
     };
   }, []);
 
-
-
   return (
-    <aside className="w-64 bg-white border-r border-slate-300 flex flex-col justify-between h-screen sticky top-0 select-none shadow-sm">
+    <aside
+      className={cn(
+        "bg-white border-r border-slate-300 flex flex-col justify-between h-screen sticky top-0 select-none shadow-sm transition-all duration-300 ease-in-out z-20 flex-shrink-0",
+        isCollapsed ? "w-20" : "w-64"
+      )}
+    >
       <div>
-        <NavLink
-          to="/welcome"
-          className="bg-[#ECEEF1] border-b border-slate-300 py-5 px-5 flex items-center justify-center gap-3"
+        {/* Top Header with Logo & 3-line Collapse Toggle */}
+        <div
+          className={cn(
+            "bg-[#ECEEF1] border-b border-slate-300 py-4 px-3 flex items-center h-[82px] transition-all",
+            isCollapsed ? "justify-center" : "justify-between"
+          )}
         >
-          <img
-            src="/icons/proba-logo.svg"
-            alt="PROBA Logo"
-            className="w-12 h-12 object-contain flex-shrink-0"
-            onError={(e) => {
-              (e.currentTarget as HTMLElement).style.display = "none";
-            }}
-          />
-          <div>
-            <span className="text-3xl font-bold tracking-wider text-[#0F1B2B] block">
-              PROBA
-            </span>
-            <span className="text-[10px] font-medium text-slate-400 tracking-tight block">
-              Provenance-based Bias Auditor
-            </span>
-          </div>
-        </NavLink>
+          {!isCollapsed && (
+            <NavLink
+              to="/welcome"
+              className="flex items-center gap-3 overflow-hidden text-left pl-2 group"
+            >
+              <img
+                src="/icons/proba-logo.svg"
+                alt="PROBA Logo"
+                className="w-10 h-10 object-contain flex-shrink-0 group-hover:scale-105 transition-transform"
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = "none";
+                }}
+              />
+              <div>
+                <span className="text-2xl font-bold tracking-wider text-[#0F1B2B] block leading-none">
+                  PROBA
+                </span>
+                <span className="text-[9px] font-medium text-slate-400 tracking-tight block mt-1 whitespace-nowrap">
+                  Provenance Bias Auditor
+                </span>
+              </div>
+            </NavLink>
+          )}
+
+          {/* 3-Line Hamburger Toggle Button */}
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="p-2 rounded-xl text-slate-600 hover:text-[#0F1B2B] hover:bg-slate-200/80 transition-colors cursor-pointer flex items-center justify-center flex-shrink-0"
+          >
+            <i className="bi bi-list text-2xl leading-none" />
+          </button>
+        </div>
 
         {/* Navigation Area */}
-        <div className="pt-8 pb-6 px-6">
+        <div className={cn("pt-6 pb-6 transition-all", isCollapsed ? "px-2" : "px-6")}>
           {/* Pipeline Ingestion (Always accessible) */}
           <NavLink
             to="/dashboard"
+            title={isCollapsed ? "Pipeline Ingestion" : undefined}
             className={cn(
-              "flex items-center group cursor-pointer py-1.5 px-2 -mx-2 rounded-lg transition-colors",
+              "flex items-center group cursor-pointer py-1.5 rounded-lg transition-colors",
+              isCollapsed ? "justify-center px-0" : "px-2 -mx-2",
               isDashboardActive ? "bg-slate-200/60" : "hover:bg-slate-100/80"
             )}
           >
@@ -112,23 +150,27 @@ export default function Sidebar() {
               />
             </div>
 
-            <span
-              className={cn(
-                "ml-3.5 text-[15px] font-bold transition-colors leading-snug",
-                isDashboardActive
-                  ? "text-[#0F1B2B] font-bold"
-                  : "text-[#1E293B] group-hover:text-[#0F1B2B]"
-              )}
-            >
-              Pipeline Ingestion
-            </span>
+            {!isCollapsed && (
+              <span
+                className={cn(
+                  "ml-3.5 text-[15px] font-bold transition-colors leading-snug whitespace-nowrap",
+                  isDashboardActive
+                    ? "text-[#0F1B2B]"
+                    : "text-[#1E293B] group-hover:text-[#0F1B2B]"
+                )}
+              >
+                Pipeline Ingestion
+              </span>
+            )}
           </NavLink>
 
-          <nav className="relative mt-8">
-            {/* Vertical Tree Connector Line */}
-            <div className="absolute left-[18px] -top-10 bottom-[19px] w-[2px] bg-[#64748B]" />
+          <nav className={cn("relative transition-all", isCollapsed ? "mt-6" : "mt-8")}>
+            {/* Vertical Tree Connector Line (expanded only) */}
+            {!isCollapsed && (
+              <div className="absolute left-[18px] -top-10 bottom-[19px] w-[2px] bg-[#64748B]" />
+            )}
 
-            <div className="space-y-10">
+            <div className={cn("space-y-6 transition-all", !isCollapsed && "space-y-10")}>
               {STEPS.map((step) => {
                 const isUnlocked = unlocked[step.key];
                 const isActive = location.pathname.startsWith(step.path);
@@ -137,16 +179,29 @@ export default function Sidebar() {
                   return (
                     <div
                       key={step.path}
-                      className="flex items-center group relative cursor-default select-none pointer-events-none"
+                      title={isCollapsed ? `${step.label} (Locked)` : undefined}
+                      className={cn(
+                        "flex items-center group relative cursor-default select-none pointer-events-none",
+                        isCollapsed ? "justify-center" : ""
+                      )}
                     >
-                      <div className="absolute left-[18px] w-4 h-[2px] bg-[#64748B] -z-0" />
-                      <div className="ml-8 flex items-center py-1.5 px-3 rounded-lg">
+                      {!isCollapsed && (
+                        <div className="absolute left-[18px] w-4 h-[2px] bg-[#64748B] -z-0" />
+                      )}
+                      <div
+                        className={cn(
+                          "flex items-center rounded-lg opacity-40",
+                          isCollapsed ? "w-10 h-10 justify-center" : "ml-8 py-1.5 px-3"
+                        )}
+                      >
                         <div className="flex items-center justify-center text-[#1E293B]">
                           <i className={cn(step.icon)} />
                         </div>
-                        <span className="ml-3 text-[12px] text-[#1E293B] opacity-50 leading-snug whitespace-nowrap">
-                          {step.label}
-                        </span>
+                        {!isCollapsed && (
+                          <span className="ml-3 text-[12px] text-[#1E293B] leading-snug whitespace-nowrap">
+                            {step.label}
+                          </span>
+                        )}
                       </div>
                     </div>
                   );
@@ -156,17 +211,24 @@ export default function Sidebar() {
                   <NavLink
                     key={step.path}
                     to={step.path}
-                    className="flex items-center group relative cursor-pointer"
+                    title={isCollapsed ? step.label : undefined}
+                    className={cn(
+                      "flex items-center group relative cursor-pointer",
+                      isCollapsed ? "justify-center" : ""
+                    )}
                   >
-                    {/* Horizontal Branch Line */}
-                    <div className="absolute left-[18px] w-4 h-[2px] bg-[#64748B] -z-0" />
+                    {!isCollapsed && (
+                      <div className="absolute left-[18px] w-4 h-[2px] bg-[#64748B] -z-0" />
+                    )}
 
-                    {/* Inner Hover Pill */}
                     <div
                       className={cn(
-                        "ml-8 flex items-center py-1.5 px-3 rounded-lg transition-all duration-150",
+                        "flex items-center rounded-lg transition-all duration-150",
+                        isCollapsed
+                          ? "w-10 h-10 justify-center"
+                          : "ml-8 py-1.5 px-3",
                         isActive
-                          ? "bg-slate-200/60 shadow-xs"
+                          ? "bg-slate-200/80 shadow-xs"
                           : "hover:bg-slate-100/80 group-hover:bg-slate-100/80"
                       )}
                     >
@@ -174,16 +236,18 @@ export default function Sidebar() {
                         <i className={cn(step.icon, isActive && "text-[#0F1B2B]")} />
                       </div>
 
-                      <span
-                        className={cn(
-                          "ml-3 text-[12px] transition-colors leading-snug whitespace-nowrap",
-                          isActive
-                            ? "text-[#0F1B2B] font-semibold"
-                            : "text-[#1E293B] group-hover:text-[#0F1B2B]"
-                        )}
-                      >
-                        {step.label}
-                      </span>
+                      {!isCollapsed && (
+                        <span
+                          className={cn(
+                            "ml-3 text-[12px] transition-colors leading-snug whitespace-nowrap",
+                            isActive
+                              ? "text-[#0F1B2B] font-semibold"
+                              : "text-[#1E293B] group-hover:text-[#0F1B2B]"
+                          )}
+                        >
+                          {step.label}
+                        </span>
+                      )}
                     </div>
                   </NavLink>
                 );
@@ -202,9 +266,11 @@ export default function Sidebar() {
             <NavLink
               key={item.path}
               to={item.path}
+              title={isCollapsed ? item.label : undefined}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-3.5 px-6 py-4 bg-[#ECEEF1] text-sm font-semibold transition-colors",
+                  "flex items-center bg-[#ECEEF1] text-sm font-semibold transition-colors",
+                  isCollapsed ? "justify-center py-4 px-0" : "gap-3.5 px-6 py-4",
                   isHistory && "border-b border-slate-300",
                   isActive
                     ? "bg-[#DFE3E8] text-[#0F1B2B] font-bold"
@@ -213,7 +279,7 @@ export default function Sidebar() {
               }
             >
               <i className={cn(item.icon, "text-[#1E293B]")} />
-              <span>{item.label}</span>
+              {!isCollapsed && <span className="whitespace-nowrap">{item.label}</span>}
             </NavLink>
           );
         })}

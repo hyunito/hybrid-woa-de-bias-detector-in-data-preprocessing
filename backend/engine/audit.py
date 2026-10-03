@@ -31,22 +31,16 @@ def run_audit(threshold=0.2):
         if score > threshold:
             filtered_biases.append(bias)
 
-    print(f"TOTAL EVALUATED BIASES (WOA + DE): {len(all_biases)}")
-    print(f"UNIQUE CANDIDATES IDENTIFIED: {len(ranked_biases)}")
-    print("\n--- RANKED AUDIT REPORT (HIGHEST TO LOWEST BIAS) ---")
-    print("--- TOP 10 ---")
 
     for bias in filtered_biases[:10]:
         score = bias["fitness_score"]
         trans = bias["transformation_name"]
         script = bias["script_name"]
         group = bias["demographic_group"]
-        source = bias.get("source", "HYBRID")
-        print(f"Rank {bias['rank']}: Score {score:.4f} | [{source}] {trans} ({script}) | Group: {group}")
+        print(f"Rank {bias['rank']}: Score {score:.4f} | {trans} ({script}) | Group: {group}")
 
     return filtered_biases
 
-if __name__ == "__main__":
-    print("Running Bias Audit...")    
+if __name__ == "__main__": 
     ranked_biases = run_audit()
     generate_mitigation_report(ranked_biases)

@@ -13,7 +13,7 @@ class WOAAuditor:
     to discover potential high-disparity bias hotspots across preprocessing pipelines.
     """
     DEFAULT_NUM_WHALES = 30
-    DEFAULT_MAX_ITER = 15
+    DEFAULT_MAX_ITER = 30
     def __init__(self, metadata_logs = None, num_whales = DEFAULT_NUM_WHALES, max_iter = DEFAULT_MAX_ITER, de_params = None):
         """
         Initializes the WOA search swarm.
@@ -100,32 +100,10 @@ class WOAAuditor:
         best_fitness, best_script, best_trans, best_demo = fitness.calculate_3d_fitness(
             self.best_position[0], self.best_position[1], self.best_position[2]
         )
-      
-        whales_info = []
-        for i in range(self.num_whales):
-            w_pos = whales_pos[i]
-            w_fit, w_script, w_trans, w_demo = fitness.calculate_3d_fitness(w_pos[0], w_pos[1], w_pos[2])
-            whales_info.append({
-                "whale_id": i + 1,
-                "position": w_pos.tolist(),
-                "fitness_score": w_fit,
-                "script_name": w_script,
-                "transformation_name": w_trans,
-                "demographic_group": w_demo
-            })
-
-        best_position_info = {
-            "best_position": self.best_position.tolist(),
-            "max_fitness_score": best_fitness,
-            "script_name": best_script,
-            "transformation_name": best_trans,
-            "demographic_group": best_demo,
-            "whales": whales_info,
-        }
-
+        dynamic_seeds = [entry["position"] for entry in self.script_bests.values()]
         # Transition to Phase 2: Differential Evolution (DE) local refinement seeded at WOA best
         result = de_auditor.run_de(
-            seed_position=best_position_info["best_position"],
+            seed_positions=dynamic_seeds,
             all_biases=self.all_biases,
             callback=callback
         )
@@ -142,10 +120,26 @@ class WOAAuditor:
         :param callback: Optional progress callback.
         :return: Global best position found by the whale swarm.
         """
+        self.script_bests = {}
+        for s_idx in range(len(self.scripts)):
+            initial_pos = self.clip_position(np.array([float(s_idx), 0.0, 0.0]))
+            initial_score = self.calculate_fitness(initial_pos)
+            self.script_bests[s_idx] = {
+                "fitness": initial_score,
+                "position": initial_pos.copy()
+            }
+        
         for t in range(self.max_iter):
             for i in range(self.num_whales):
                 whales_pos[i] = self.clip_position(whales_pos[i])
                 score = self.calculate_fitness(whales_pos[i])
+                s_idx = int(round(whales_pos[i][0]))
+                if s_idx in self.script_bests:
+                    if score > self.script_bests[s_idx]["fitness"]:
+                        self.script_bests[s_idx] = {
+                            "fitness": score,
+                            "position": whales_pos[i].copy()
+                        }
                 if score > self.best_fitness:
                     self.best_fitness = score
                     self.best_position = whales_pos[i].copy()
@@ -189,8 +183,7 @@ class WOAAuditor:
                     "fitness_score": dummy_fit,
                     "script_name": dummy_script,
                     "transformation_name": dummy_trans,
-                    "demographic_group": dummy_demo,
-                    "source": "WOA"
+                    "demographic_group": dummy_demo
                 })
 
                 if callback:
@@ -209,7 +202,6 @@ class WOAAuditor:
                         pass
         
         return self.best_position
-
 
 if __name__ == "__main__":
     auditor = WOAAuditor()
