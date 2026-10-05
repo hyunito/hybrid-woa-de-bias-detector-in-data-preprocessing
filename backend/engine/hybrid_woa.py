@@ -74,33 +74,30 @@ class WOAAuditor:
         """
         de_auditor = DEAuditor(metadata_logs=self.metadata_logs, **self.de_params)
         self.all_biases = []
-        
+        num_scripts = len(self.scripts)
+        whales_per_script = max(1, self.num_whales // num_scripts)
+        total_whales = num_scripts * whales_per_script
+
         whales_pos = []
-        for _ in range(self.num_whales):
-            s_val = random.randint(0, len(self.scripts) - 1)
-            script_name = self.scripts[s_val]
-            
+        for s in range(num_scripts):
+            script_name = self.scripts[s]
             trans_list = self.transformations.get(script_name, [])
             t_max = max(0, len(trans_list) - 1)
-            t_val = random.randint(0, t_max)
-            trans_name = trans_list[t_val] if trans_list else "None"
-            
-            demo_list = self.demographics.get((script_name, trans_name), [])
-            d_max = max(0, len(demo_list) - 1)
-            d_val = random.randint(0, d_max)
-            
-            whales_pos.append([float(s_val), float(t_val), float(d_val)])
+            for _ in range(whales_per_script):
+                t_val = random.randint(0, t_max)
+                trans_name = trans_list[t_val] if trans_list else "None"
+                demo_list = self.demographics.get((script_name, trans_name), [])
+                d_max = max(0, len(demo_list) - 1)
+                d_val = random.randint(0, d_max)
+                whales_pos.append([float(s), float(t_val), float(d_val)])
             
         whales_pos = np.array(whales_pos)
         self.best_fitness = float('-inf')
         self.best_position = whales_pos[0].copy()
         
         self.best_position = self.core_algo(whales_pos, callback=callback)
-                
-        best_fitness, best_script, best_trans, best_demo = fitness.calculate_3d_fitness(
-            self.best_position[0], self.best_position[1], self.best_position[2]
-        )
-        dynamic_seeds = [entry["position"] for entry in self.script_bests.values()]
+           
+        dynamic_seeds = [entry["position"] for entry in self.transformation_bests.values()]
         # Transition to Phase 2: Differential Evolution (DE) local refinement seeded at WOA best
         result = de_auditor.run_de(
             seed_positions=dynamic_seeds,
@@ -115,65 +112,97 @@ class WOAAuditor:
         Executes the iterative mathematical WOA hunting mechanism.
         Balances exploration and exploitation using coefficient vectors A and C,
         and switches between encircling prey, random search, and spiral bubble-net attack.
-
-        :param whales_pos: Population coordinate array of shape (num_whales, 3).
-        :param callback: Optional progress callback.
-        :return: Global best position found by the whale swarm.
         """
+        num_scripts = len(self.scripts)
+        num_whales = len(whales_pos)
+        whales_per_script = max(1, num_whales // num_scripts)
+
+        # 1. Initialize BOTH script-level and transformation-level tracking
         self.script_bests = {}
-        for s_idx in range(len(self.scripts)):
-            initial_pos = self.clip_position(np.array([float(s_idx), 0.0, 0.0]))
-            initial_score = self.calculate_fitness(initial_pos)
-            self.script_bests[s_idx] = {
-                "fitness": initial_score,
-                "position": initial_pos.copy()
-            }
+        self.transformation_bests = {}
+        for s_idx, s_name in enumerate(self.scripts):
+            t_list = self.transformations.get(s_name, [])
+            for t_idx, t_name in enumerate(t_list):
+                init_p = self.clip_position(np.array([float(s_idx), float(t_idx), 0.0]))
+                init_f = self.calculate_fitness(init_p)
+                self.transformation_bests[(s_idx, t_idx)] = {"fitness": init_f, "position": init_p.copy()}
+                if s_idx not in self.script_bests or init_f > self.script_bests[s_idx]["fitness"]:
+                    self.script_bests[s_idx] = {"fitness": init_f, "position": init_p.copy()}
         
         for t in range(self.max_iter):
-            for i in range(self.num_whales):
+            # Evaluate all whales
+            for i in range(num_whales):
                 whales_pos[i] = self.clip_position(whales_pos[i])
                 score = self.calculate_fitness(whales_pos[i])
                 s_idx = int(round(whales_pos[i][0]))
+                t_idx = int(round(whales_pos[i][1]))
+                
+                # Update transformation-level best (preserves Num Outlier!)
+                if (s_idx, t_idx) in self.transformation_bests:
+                    if score > self.transformation_bests[(s_idx, t_idx)]["fitness"]:
+                        self.transformation_bests[(s_idx, t_idx)] = {
+                            "fitness": score,
+                            "position": whales_pos[i].copy()
+                        }
+
+                # Update script-level sub-swarm leader
                 if s_idx in self.script_bests:
                     if score > self.script_bests[s_idx]["fitness"]:
                         self.script_bests[s_idx] = {
                             "fitness": score,
                             "position": whales_pos[i].copy()
                         }
+
                 if score > self.best_fitness:
                     self.best_fitness = score
                     self.best_position = whales_pos[i].copy()
 
-            # Linearly decrease parameter 'a' from 2 to 0 to transition from exploration to exploitation
+            # Linearly decrease parameter 'a' from 2 to 0
             a = 2.0 - (t * (2.0 / self.max_iter)) 
             
-            for i in range(self.num_whales):
+            # Script-Preserving Multi-Swarm Movement
+            for i in range(num_whales):
+                s_idx = i // whales_per_script
+                lead_pos = self.script_bests[s_idx]["position"]  #Script sub-swarm leader
+                curr_pos = whales_pos[i]
+
+                # Long-range demographic jump with 15% probability in early iterations
+                if random.random() < 0.15 and t < self.max_iter * 0.7:
+                    s_name = self.scripts[s_idx]
+                    t_list = self.transformations.get(s_name, [])
+                    t_rand = random.randint(0, max(0, len(t_list) - 1))
+                    t_name = t_list[t_rand] if t_list else "None"
+                    d_list = self.demographics.get((s_name, t_name), [])
+                    d_rand = random.randint(0, max(0, len(d_list) - 1))
+                    whales_pos[i] = np.array([float(s_idx), float(t_rand), float(d_rand)])
+                    continue
+
                 r1 = random.random()
                 r2 = random.random()
-                
                 A = 2 * a * r1 - a
                 C = 2 * r2
-                
                 l = random.uniform(-1, 1)
                 p = random.random()
                 
                 if p < 0.5:
                     if abs(A) < 1:
-                        # Exploitation: Encircling current best candidate position
-                        D = abs(C * self.best_position - whales_pos[i])
-                        new_pos = self.best_position - A * D
+                        # Encircling script leader
+                        D = abs(C * lead_pos - curr_pos)
+                        new_pos = lead_pos - A * D
                     else:
-                        # Exploration: Searching for new prey using a randomly selected agent
-                        random_whale_idx = random.randint(0, self.num_whales - 1)
-                        random_whale = whales_pos[random_whale_idx]
-                        D = abs(C * random_whale - whales_pos[i])
-                        new_pos = random_whale - A * D
+                        # Random search within the same script sub-swarm
+                        rand_idx = s_idx * whales_per_script + random.randint(0, whales_per_script - 1)
+                        rand_whale = whales_pos[rand_idx]
+                        D = abs(C * rand_whale - curr_pos)
+                        new_pos = rand_whale - A * D
                 else:
-                    # Exploitation: Spiral bubble-net attack modeling logarithmic path
-                    D_prime = abs(self.best_position - whales_pos[i])
+                    # Spiral bubble-net attack around script leader
+                    D_prime = abs(lead_pos - curr_pos)
                     b = 1.0
-                    new_pos = D_prime * math.exp(b * l) * math.cos(2 * math.pi * l) + self.best_position
+                    new_pos = D_prime * math.exp(b * l) * math.cos(2 * math.pi * l) + lead_pos
 
+                # Anchor whale permanently inside its assigned script
+                new_pos[0] = float(s_idx)
                 whales_pos[i] = self.clip_position(new_pos)
 
                 dummy_fit, dummy_script, dummy_trans, dummy_demo = fitness.calculate_3d_fitness(
@@ -202,6 +231,7 @@ class WOAAuditor:
                         pass
         
         return self.best_position
+
 
 if __name__ == "__main__":
     auditor = WOAAuditor()

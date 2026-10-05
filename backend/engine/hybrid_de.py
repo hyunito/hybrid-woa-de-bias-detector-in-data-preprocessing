@@ -83,13 +83,13 @@ class DEAuditor:
         score, _, _, _ = fitness.calculate_3d_fitness(pos[0], pos[1], pos[2])
         return score
 
-    def run_de(self, seed_positions=None, seed_jitter=1.0, all_biases=None, callback=None):
+    def run_de(self, seed_positions=None, all_biases=None, callback=None):
         """
         Executes the main DE optimization loop over the 3D search space.
-        Initializes the population around seed positions provided by the WOA exploration stage.
+        Investigates the exact transformation spots discovered by WOA.
+        If no higher bias is found, the best position remains unchanged.
 
-        :param seed_positions: Best positions identified across scripts by the WOA stage.
-        :param seed_jitter: Perturbation radius for seeding initial DE individuals.
+        :param seed_positions: Best positions identified across transformations by WOA.
         :param all_biases: Shared list collecting all bias records across stages.
         :param callback: Optional progress callback.
         :return: Final audit report dictionary.
@@ -97,7 +97,6 @@ class DEAuditor:
         if all_biases is None:
             all_biases = []
 
-        # Ensure seed_positions is a list of positions
         if seed_positions is None:
             raise ValueError("Hybrid DE requires seed positions from the WOA exploration stage.")
 
@@ -106,26 +105,19 @@ class DEAuditor:
         ):
             seed_positions = [seed_positions]
 
-        # Allocate population proportionally across script seeds
-        pop = []
-        num_seeds = len(seed_positions)
-        per_seed = max(1, self.pop_size // num_seeds)
+        # 1. Start population directly with the EXACT spots from WOA (zero noise, zero jitter)
+        pop = [self.clip_position(np.array(s, dtype=float)) for s in seed_positions]
 
-        for s_pos in seed_positions:
-            s_arr = np.array(s_pos, dtype=float)
-            for _ in range(per_seed):
-                jitter = np.random.uniform(-seed_jitter, seed_jitter, size=self.dim)
-                pop.append(self.clip_position(s_arr + jitter))
-
-        # Top off any remaining slots using the primary best seed
+        # 2. Fill the population to pop_size by cleanly replicating the exact seeds
+        i = 0
         while len(pop) < self.pop_size:
-            s_arr = np.array(seed_positions[0], dtype=float)
-            jitter = np.random.uniform(-seed_jitter, seed_jitter, size=self.dim)
-            pop.append(self.clip_position(s_arr + jitter))
+            pop.append(pop[i % len(seed_positions)].copy())
+            i += 1
 
         pop = np.array(pop)
 
-        # Run local refinement
+        # 3. Run DE refinement on those exact spots
+        # If DE finds a higher score, it updates. If not, it stays on WOA's exact best spot!
         self.best_position = self.core_algo(pop, all_biases=all_biases, callback=callback)
 
         best_fitness, best_script, best_trans, best_demo = fitness.calculate_3d_fitness(
@@ -139,7 +131,6 @@ class DEAuditor:
             "demographic_group": best_demo,
             "all_biases": all_biases,
         }
-
 
     def core_algo(self, pop, all_biases=None, callback=None):
         """

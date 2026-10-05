@@ -32,7 +32,7 @@ def run_audit(threshold=0.2):
             filtered_biases.append(bias)
 
 
-    for bias in filtered_biases[:10]:
+    for bias in filtered_biases[:1]:
         score = bias["fitness_score"]
         trans = bias["transformation_name"]
         script = bias["script_name"]

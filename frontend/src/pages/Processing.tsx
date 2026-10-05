@@ -52,12 +52,11 @@ export default function Processing() {
     }
   }, [navigate]);
 
-  // Audit ID setup
+  // Audit ID setup - preserves active/completed audit ID across page navigation
   const [auditId, setAuditId] = useState<string>(() => {
     if (paramAuditId) return paramAuditId;
     const existing = sessionStorage.getItem("current_audit_id");
-    const hasCompleted = sessionStorage.getItem("audit_results");
-    if (existing && !hasCompleted) {
+    if (existing) {
       return existing;
     }
     const freshId = createAuditId();
@@ -274,6 +273,10 @@ export default function Processing() {
             setCurrentStage("completed");
             setIsCompleted(true);
             setActiveScriptIndex(pipelineScripts.length);
+
+            const completedAuditId = msg.audit_id || targetAuditId;
+            setAuditId(completedAuditId);
+            sessionStorage.setItem("current_audit_id", completedAuditId);
 
             // Store full results in sessionStorage
             if (msg.results) {
