@@ -49,7 +49,7 @@ export default function Carousel({ slides }: { slides: ReactNode[] }) {
               onClick={() => setIndex(i)}
               aria-label={`Go to slide ${i + 1}`}
               className={`h-2.5 rounded-full transition-all cursor-pointer ${
-                i === index ? "w-6 bg-[#243F85]" : "w-2.5 bg-slate-300 hover:bg-slate-400"
+                i === index ? "w-6 bg-[#0F1B2B]" : "w-2.5 bg-slate-300 hover:bg-slate-400"
               }`}
             />
           ))}

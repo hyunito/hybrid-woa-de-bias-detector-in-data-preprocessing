@@ -71,6 +71,30 @@ interface ChartPoint {
   best_fitness: number;
 }
 
+interface ParamLabelProps {
+  label: string;
+  tooltip: string;
+  color: string;
+}
+
+function ParamLabel({ label, tooltip, color }: ParamLabelProps) {
+  return (
+    <div className="relative group inline-flex items-center gap-1.5 whitespace-nowrap cursor-help select-none">
+      <span className="transition-colors" style={{ color }}>
+        {label}
+      </span>
+      <i className="bi bi-info-circle text-[11px] text-slate-400 group-hover:text-blue-600 transition-colors" />
+
+      {/* Floating Tooltip Bubble */}
+      <div className="absolute bottom-full right-0 mb-2 hidden group-hover:flex flex-col z-[100] w-64 p-2.5 bg-[#0F1B2B] text-left whitespace-normal text-white text-[11px] leading-relaxed rounded-xl shadow-xl pointer-events-none transition-all">
+        <span>{tooltip}</span>
+        {/* Subtle arrow pointer pointing down */}
+        <div className="absolute top-full right-4 -mt-1 border-4 border-transparent border-t-[#0F1B2B]" />
+      </div>
+    </div>
+  );
+}
+
 export default function Results() {
   const { auditId: paramAuditId } = useParams();
   const navigate = useNavigate();
@@ -285,10 +309,10 @@ export default function Results() {
     return (
       <div className="flex flex-col items-center justify-center h-full max-w-7xl mx-auto w-full py-20 text-slate-500">
         <i className="bi bi-arrow-repeat animate-spin text-4xl text-blue-600 mb-3" />
-        <h2 className="text-base font-bold text-slate-800 uppercase tracking-wider">
+        <h2 className="text-base font-bold text-white uppercase tracking-wider">
           Loading Bias Audit Report...
         </h2>
-        <p className="text-xs text-slate-400 mt-1">
+        <p className="text-xs text-slate-200 mt-1">
           Parsing provenance lineage, intersectional disparities, and mitigation techniques for #{auditId}
         </p>
       </div>
@@ -831,6 +855,24 @@ export default function Results() {
                       verticalAlign="top"
                       align="right"
                       wrapperStyle={{ fontSize: "10px", paddingBottom: "4px" }}
+                      formatter={(value, entry) =>
+                        value === "Highest Bias Found" || value === "Unique Bias Score" ? (
+                          <ParamLabel
+                            label={value}
+                            tooltip={
+                              value === "Highest Bias Found"
+                                ? "The provenance record with the highest bias score computed from the fitness function."
+                                : "The bias score calculated for each unique combination of preprocessing transformation and demographic group using the fitness function."
+                            }
+                            color={
+                              entry.color ??
+                              (value === "Highest Bias Found" ? "#10B981" : "#0284C7")
+                            }
+                          />
+                        ) : (
+                          value
+                        )
+                      }
                     />
                     <Line
                       type="monotone"

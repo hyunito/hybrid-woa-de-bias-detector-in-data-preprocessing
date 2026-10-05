@@ -25,7 +25,29 @@ interface ChartPoint {
   best_fitness: number;
 }
 
+interface ParamLabelProps {
+  label: string;
+  tooltip: string;
+  color: string;
+}
 
+function ParamLabel({ label, tooltip, color }: ParamLabelProps) {
+  return (
+    <div className="relative group inline-flex items-center gap-1.5 whitespace-nowrap cursor-help select-none">
+      <span className="transition-colors" style={{ color }}>
+        {label}
+      </span>
+      <i className="bi bi-info-circle text-[11px] text-slate-400 group-hover:text-blue-600 transition-colors" />
+
+      {/* Floating Tooltip Bubble */}
+      <div className="absolute bottom-full right-0 mb-2 hidden group-hover:flex flex-col z-[100] w-64 p-2.5 bg-[#0F1B2B] text-left whitespace-normal text-white text-[11px] leading-relaxed rounded-xl shadow-xl pointer-events-none transition-all">
+        <span>{tooltip}</span>
+        {/* Subtle arrow pointer pointing down */}
+        <div className="absolute top-full right-4 -mt-1 border-4 border-transparent border-t-[#0F1B2B]" />
+      </div>
+    </div>
+  );
+}
 
 function createAuditId(): string {
   const now = new Date();
@@ -415,7 +437,7 @@ export default function Processing() {
       {/* Main Grid: Pipeline Flow (Top Left), Live Chart (Top Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-shrink-0">
         {/* Left Card: Pipeline Flow Diagram */}
-        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md p-6 flex flex-col justify-between overflow-hidden">
+        <div className="relative z-10 bg-white rounded-3xl border border-slate-200/90 shadow-md p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
               <div>
@@ -628,6 +650,21 @@ export default function Processing() {
                     verticalAlign="top"
                     align="right"
                     wrapperStyle={{ fontSize: "10px", paddingBottom: "4px" }}
+                    formatter={(value, entry) =>
+                      value === "Highest Bias Found" || value === "Unique Bias Score" ? (
+                        <ParamLabel
+                          label={value}
+                          tooltip={
+                            value === "Highest Bias Found"
+                              ? "The provenance record with the highest bias score computed from the fitness function."
+                              : "The bias score calculated for each unique combination of preprocessing transformation and demographic group using the fitness function."
+                          }
+                          color={entry.color ?? (value === "Highest Bias Found" ? "#10B981" : "#0284C7")}
+                        />
+                      ) : (
+                        value
+                      )
+                    }
                   />
                   <Line
                     type="monotone"
