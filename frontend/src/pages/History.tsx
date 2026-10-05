@@ -20,7 +20,7 @@ export default function History() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSortOpen, setIsSortOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<"highest-bias" | "lowest-bias" | "newest" | "oldest">("highest-bias");
+  const [sortBy, setSortBy] = useState<"highest-bias" | "lowest-bias" | "newest" | "oldest">("newest");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   // Initial mount data load

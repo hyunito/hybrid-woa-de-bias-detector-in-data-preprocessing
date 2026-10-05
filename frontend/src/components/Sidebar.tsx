@@ -110,7 +110,7 @@ export default function Sidebar() {
                   PROBA
                 </span>
                 <span className="text-[9px] font-medium text-slate-400 tracking-tight block mt-1 whitespace-nowrap">
-                  Provenance Bias Auditor
+                  Provenance-based Bias Auditor
                 </span>
               </div>
             </NavLink>

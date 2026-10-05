@@ -656,8 +656,8 @@ export default function Processing() {
                           label={value}
                           tooltip={
                             value === "Highest Bias Found"
-                              ? "The provenance record with the highest bias score computed from the fitness function."
-                              : "The bias score calculated for each unique combination of preprocessing transformation and demographic group using the fitness function."
+                              ? "The peak bias level discovered by the algorithm (higher means more unfair)."
+                              : "The unique bias score for each individual demographic subgroup evaluated during data preprocessing."
                           }
                           color={entry.color ?? (value === "Highest Bias Found" ? "#10B981" : "#0284C7")}
                         />

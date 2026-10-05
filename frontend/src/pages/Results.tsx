@@ -334,7 +334,7 @@ export default function Results() {
             </span>
           </div>
           <p className="text-xs text-slate-500 font-medium">
-            Post-processing intersectional bias discovery, provenance lineage, and algorithmic mitigation recommendations.
+            Post-processing intersectional bias discovery, provenance lineage, and mitigation recommendations.
           </p>
         </div>
 
@@ -616,19 +616,16 @@ export default function Results() {
                         {/* Transformation Card */}
                         <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs hover:border-slate-300 transition-all flex flex-col justify-between">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                               Root-Cause Transformation
-                            </span>
-                            <span className="text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-md">
-                              Operation
                             </span>
                           </div>
                           <div>
                             <span className="text-sm sm:text-base font-black text-slate-900 tracking-tight block mt-1" title={currentBias?.transformation_name}>
                               {currentBias?.transformation_name || "N/A"}
                             </span>
-                            <span className="text-[11px] text-slate-400 mt-1 block font-medium">
-                              Disparity-inducing preprocessing step
+                            <span className="text-[10px] text-slate-400 mt-1 block font-medium">
+                              Function or step that causes disparity during the preprocessing
                             </span>
                           </div>
                         </div>
@@ -668,10 +665,9 @@ export default function Results() {
                           </div>
                         </div>
 
-                        {/* Highest Bias Subgroup Breakdown */}
                         <div className="pb-3 border-b border-slate-200/60">
                           <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1.5">
-                            Highest Bias Subgroup Breakdown
+                            Highest Bias Demographic Group
                           </span>
                           <div className="flex flex-wrap items-center gap-2">
                             {parsedDemographics.map((demo, dIdx) => (
@@ -802,7 +798,7 @@ export default function Results() {
                     BIAS SCORES
                   </h2>
                   <span className="text-[11px] text-slate-500 font-medium">
-                    Convergence trajectory and search fitness evaluation
+                    Bias scores tracked across evaluations
                   </span>
                 </div>
               </div>
@@ -861,8 +857,8 @@ export default function Results() {
                             label={value}
                             tooltip={
                               value === "Highest Bias Found"
-                                ? "The provenance record with the highest bias score computed from the fitness function."
-                                : "The bias score calculated for each unique combination of preprocessing transformation and demographic group using the fitness function."
+                                ? "The peak bias level discovered by the algorithm (higher means more unfair)."
+                                : "The unique bias score for each individual demographic subgroup evaluated during data preprocessing."
                             }
                             color={
                               entry.color ??
