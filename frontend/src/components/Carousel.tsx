@@ -1,10 +1,13 @@
 import { useState, type ReactNode } from "react";
 
-export default function Flashcards({ slides }: { slides: ReactNode[] }) {
+export default function Carousel({ slides }: { slides: ReactNode[] }) {
   const [index, setIndex] = useState(0);
 
-  const next = () => setIndex((i) => (i + 1) % slides.length);
-  const prev = () => setIndex((i) => (i - 1 + slides.length) % slides.length);
+  const next = () => setIndex((i) => Math.min(i + 1, slides.length - 1));
+  const prev = () => setIndex((i) => Math.max(i - 1, 0));
+
+  const isFirst = index === 0;
+  const isLast = index === slides.length - 1;
 
   return (
     <div className="flex-1 flex flex-col bg-white rounded-3xl border border-slate-200/90 shadow-md overflow-hidden">
@@ -25,10 +28,14 @@ export default function Flashcards({ slides }: { slides: ReactNode[] }) {
 
       {/* Controls */}
       <div className="flex items-center justify-center gap-4 pb-6">
+        {/* Previous: hidden on the first slide, but still takes up space so the dots don't shift */}
         <button
           onClick={prev}
-          aria-label="Previous card"
-          className="p-2 rounded-full text-[#0F1B2B] hover:bg-slate-200 transition-all cursor-pointer active:scale-95"
+          disabled={isFirst}
+          aria-label="Previous slide"
+          className={`p-2 rounded-full text-[#0F1B2B] hover:bg-slate-200 transition-all cursor-pointer active:scale-95 ${
+            isFirst ? "invisible" : ""
+          }`}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
@@ -40,7 +47,7 @@ export default function Flashcards({ slides }: { slides: ReactNode[] }) {
             <button
               key={i}
               onClick={() => setIndex(i)}
-              aria-label={`Go to card ${i + 1}`}
+              aria-label={`Go to slide ${i + 1}`}
               className={`h-2.5 rounded-full transition-all cursor-pointer ${
                 i === index ? "w-6 bg-[#243F85]" : "w-2.5 bg-slate-300 hover:bg-slate-400"
               }`}
@@ -48,10 +55,14 @@ export default function Flashcards({ slides }: { slides: ReactNode[] }) {
           ))}
         </div>
 
+        {/* Next: hidden on the last slide, but still takes up space so the dots don't shift */}
         <button
           onClick={next}
-          aria-label="Next card"
-          className="p-2 rounded-full text-[#0F1B2B] hover:bg-slate-200 transition-all cursor-pointer active:scale-95"
+          disabled={isLast}
+          aria-label="Next slide"
+          className={`p-2 rounded-full text-[#0F1B2B] hover:bg-slate-200 transition-all cursor-pointer active:scale-95 ${
+            isLast ? "invisible" : ""
+          }`}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="9 18 15 12 9 6" />
