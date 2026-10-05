@@ -16,12 +16,7 @@ for run in range(runs):
     start_time = time.perf_counter()
 
     woa_auditor = WOAAuditor()
-    woa_result = woa_auditor.run_woa()
-
-    de_auditor = DEAuditor()
-    result = de_auditor.run_de(
-        seed_position=woa_result["best_position"]
-    )
+    result = woa_auditor.run_woa()
 
     end_time = time.perf_counter()
 

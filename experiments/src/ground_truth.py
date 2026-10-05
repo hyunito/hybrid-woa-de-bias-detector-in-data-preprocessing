@@ -13,7 +13,7 @@ def find_ground_truth_max_fitness():
         stages = json.load(f)
         
     results = []
-    
+    valid_demo = 0
     with open(log_path, "w", encoding="utf-8") as f:
         f.write("Highest Bias In Each Transformation\n\n")
     
@@ -29,6 +29,7 @@ def find_ground_truth_max_fitness():
             highest_rate = -1.0
             for g_key, g_metrics in demos.items():
                 if g_metrics.get("total_count", 0) >= 30:
+                    
                     curr_rate = g_metrics.get("selection_rate_favorable_outcomes", 0.0)
                     if curr_rate > highest_rate:
                         highest_rate = curr_rate
@@ -46,7 +47,7 @@ def find_ground_truth_max_fitness():
             
             if total_count < 30:
                 continue
-                
+            valid_demo = valid_demo + 1    
             rate_target = metrics.get("selection_rate_favorable_outcomes")
             if rate_target is None:
                 rate_target = metrics.get("selection_rate", 0.0)
@@ -79,12 +80,14 @@ def find_ground_truth_max_fitness():
             results.append(entry)
             with open(log_path, "a", encoding="utf-8") as f:
                 f.write(f"{entry}\n")
-                
+
+    print(f"Valid Demographics Count: {valid_demo}")            
     return results
 
 if __name__ == "__main__":
     
     results = find_ground_truth_max_fitness()
     print(f"\nSearch Complete! Found {len(results)} hotspots:")
+    
     for res in results:
         print(res)
