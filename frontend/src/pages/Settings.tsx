@@ -23,7 +23,7 @@ interface SettingsState {
 
 const DEFAULT_ALGO_SETTINGS = {
   searchingAgents: 30,
-  maxIterations: 15,
+  maxIterations: 30,
   populationSize: 30,
   scaleFactor: 0.5,
   crossoverRate: 0.7,
@@ -109,7 +109,7 @@ export default function Settings() {
             setSettings((prev) => ({
               ...prev,
               searchingAgents: Number(algoData.searchingAgents ?? 30),
-              maxIterations: Number(algoData.maxIterations ?? 15),
+              maxIterations: Number(algoData.maxIterations ?? 30),
               populationSize: Number(algoData.populationSize ?? 30),
               scaleFactor: Number(algoData.scaleFactor ?? 0.5),
               crossoverRate: Number(algoData.crossoverRate ?? 0.7),

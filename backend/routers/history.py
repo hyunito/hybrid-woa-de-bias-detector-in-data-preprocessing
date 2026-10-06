@@ -44,13 +44,14 @@ def get_audit_history():
                     highest_score = round(float(highest_score), 4)
 
                 root_cause = data.get("root_cause")
-                if not root_cause:
+                if not root_cause or (root_cause in ["Data Preprocessing", "Pipeline Analysis"] and len(ranked) == 0):
                     if recs:
                         root_cause = recs[0].get("category") or recs[0].get("transformation_name")
                     elif ranked:
                         root_cause = ranked[0].get("transformation_name") or ranked[0].get("script_name")
                     else:
-                        root_cause = "Pipeline Analysis"
+                        root_cause = "No Bias Detected"
+
 
                 history.append({
                     "id": audit_id,

@@ -32,11 +32,13 @@ def save_audit_result(audit_id: str, results: dict, threshold: float = 0.2) -> d
         results["script_rollups"] = script_rollups
 
     highest_score = round(float(ranked[0]["fitness_score"]), 4) if ranked else 0.0
-    root_cause = (
-        recommendations[0].get("category") or recommendations[0].get("transformation_name")
-        if recommendations
-        else (ranked[0].get("transformation_name") or ranked[0].get("script_name") if ranked else "Data Preprocessing")
-    )
+    if recommendations:
+        root_cause = recommendations[0].get("category") or recommendations[0].get("transformation_name")
+    elif ranked:
+        root_cause = ranked[0].get("transformation_name") or ranked[0].get("script_name")
+    else:
+        root_cause = "No Bias Detected"
+
 
     record = {
         "audit_id": audit_id,

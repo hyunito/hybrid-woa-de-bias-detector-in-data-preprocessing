@@ -33,12 +33,6 @@ const hero = (
     <p className="mt-8 text-base text-[#1E293B]">
       PROBA records every transformation in your dataset<br />and flags the ones that cause bias.
     </p>
-    <NavLink
-      to="/dashboard"
-      className="mt-8 inline-flex text-xs font-bold text-[#0F1B2B] bg-[#ECEEF1] hover:bg-slate-200 border border-slate-300 rounded-xl px-7 py-2 shadow-xs transition-all cursor-pointer active:scale-95 disabled:opacity-50 items-center gap-1.5"
-    >
-      Get started
-    </NavLink>
   </Slide>
 );
 
@@ -68,6 +62,14 @@ const stepSlide = (n: number, title: string, body: string) => (
     </p>
     <h2 className="text-5xl font-bold text-[#0F1B2B]">{title}</h2>
     <p className="mt-8 text-base text-[#1E293B] max-w-xl">{body}</p>
+    {n === steps.length && (
+      <NavLink
+        to="/dashboard"
+        className="mt-8 inline-flex text-xs font-bold text-[#0F1B2B] bg-[#ECEEF1] hover:bg-slate-200 border border-slate-300 rounded-xl px-7 py-2 shadow-xs transition-all cursor-pointer active:scale-95 disabled:opacity-50 items-center gap-1.5"
+      >
+        Get started
+      </NavLink>
+    )}
   </Slide>
 );
 

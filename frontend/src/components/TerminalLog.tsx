@@ -10,12 +10,11 @@ export interface TerminalLine {
 
 interface TerminalLogProps {
   logs: TerminalLine[];
-  onClear?: () => void;
   onProcess?: () => void;
+  onTerminate?: () => void;
   isProcessing?: boolean;
   viewResultsUrl?: string;
   isCompleted?: boolean;
-  readOnly?: boolean;
   title?: string;
   subtitle?: string;
   className?: string;
@@ -23,12 +22,11 @@ interface TerminalLogProps {
 
 export default function TerminalLog({
   logs,
-  onClear,
   onProcess,
+  onTerminate,
   isProcessing = false,
   viewResultsUrl,
   isCompleted = false,
-  readOnly = false,
   title = "TERMINAL LOG",
   subtitle,
   className,
@@ -122,6 +120,18 @@ export default function TerminalLog({
               </button>
             )}
 
+            {isProcessing && onTerminate && (
+              <button
+                type="button"
+                onClick={onTerminate}
+                className="text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shadow-2xs bg-rose-600 hover:bg-rose-700 text-white cursor-pointer active:scale-95"
+                title="Terminate ongoing audit"
+              >
+                <i className="bi bi-stop-fill text-sm" />
+                <span>Terminate</span>
+              </button>
+            )}
+
             {viewResultsUrl && (
               isCompleted ? (
                 <NavLink
@@ -145,16 +155,7 @@ export default function TerminalLog({
               )
             )}
 
-            {!readOnly && onClear && (
-              <button
-                type="button"
-                onClick={onClear}
-                className="text-slate-400 hover:text-red-600 text-xs transition-colors cursor-pointer p-1 rounded-md hover:bg-slate-200/60"
-                title="Clear logs"
-              >
-                <i className="bi bi-trash" />
-              </button>
-            )}
+
 
             <button
               type="button"
@@ -206,6 +207,17 @@ export default function TerminalLog({
                     <span>Process</span>
                   </button>
                 )}
+                {isProcessing && onTerminate && (
+                  <button
+                    type="button"
+                    onClick={onTerminate}
+                    className="text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shadow-2xs bg-rose-600 hover:bg-rose-700 text-white cursor-pointer active:scale-95"
+                    title="Terminate ongoing audit"
+                  >
+                    <i className="bi bi-stop-fill text-sm" />
+                    <span>Terminate</span>
+                  </button>
+                )}
                 {viewResultsUrl && (
                   isCompleted ? (
                     <NavLink
@@ -226,16 +238,7 @@ export default function TerminalLog({
                     </button>
                   )
                 )}
-                {!readOnly && onClear && (
-                  <button
-                    type="button"
-                    onClick={onClear}
-                    className="text-slate-400 hover:text-red-600 text-xs transition-colors cursor-pointer px-2.5 py-1 rounded-md hover:bg-slate-100 flex items-center gap-1.5"
-                  >
-                    <i className="bi bi-trash" />
-                    <span>Clear</span>
-                  </button>
-                )}
+
                 <button
                   type="button"
                   onClick={() => setIsFullscreen(false)}

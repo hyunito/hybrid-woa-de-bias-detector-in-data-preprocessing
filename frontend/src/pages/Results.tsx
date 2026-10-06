@@ -522,7 +522,7 @@ export default function Results() {
 
                   <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-100/70 px-3 py-1 rounded-full border border-emerald-300/60">
                     <i className="bi bi-check-circle-fill text-emerald-600 text-xs" />
-                    Pipeline Certified Within Safe Tolerances
+                    Within Safe Tolerances
                   </span>
                 </div>
               ) : (

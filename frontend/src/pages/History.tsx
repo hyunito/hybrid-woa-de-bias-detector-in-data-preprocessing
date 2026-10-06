@@ -415,11 +415,19 @@ export default function History() {
                     </div>
 
                     {/* Root Cause */}
-                    <div className="col-span-3 text-center font-medium text-slate-700">
-                      <span className="bg-slate-100 border border-slate-200/80 px-2.5 py-1 rounded-md text-[11px]">
-                        {log.rootCause}
+                    <div className="col-span-3 text-center">
+                      <span
+                        className={cn(
+                          "inline-block max-w-[90%] truncate font-bold border px-2.5 py-1 rounded-md text-[11px]",
+                          log.totalFindings === 0 || log.rootCause === "No Bias Detected"
+                            ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                            : "text-slate-700 bg-slate-100 border-slate-200/80"
+                        )}
+                      >
+                        {log.totalFindings === 0 ? "No Bias Detected" : log.rootCause}
                       </span>
                     </div>
+
 
                     {/* Bias Score */}
                     <div className="col-span-2 text-center">

@@ -303,6 +303,7 @@ export default function Processing() {
             // Store full results in sessionStorage
             if (msg.results) {
               sessionStorage.setItem("audit_results", JSON.stringify(msg.results));
+              sessionStorage.removeItem("audit_is_processing");
               window.dispatchEvent(new Event("proba_step_change"));
             }
 
@@ -319,8 +320,20 @@ export default function Processing() {
                 text: `[SYSTEM] You may now click 'View Results ->' to inspect the full Bias Audit Report.`,
               },
             ]);
+          } else if (msg.type === "terminated") {
+            sessionStorage.removeItem("audit_is_processing");
+            setCurrentStage("ready");
+            setTerminalLogs((prev) => [
+              ...prev,
+              {
+                id: `term-${Date.now()}`,
+                stream: "warning",
+                text: `> [SYSTEM] Audit session terminated by user.`,
+              },
+            ]);
           } else if (msg.type === "error") {
             const errMsg = msg.message || "An unexpected error occurred on the backend.";
+            sessionStorage.removeItem("audit_is_processing");
             setSocketError(errMsg);
             setCurrentStage("error");
             setTerminalLogs((prev) => [
@@ -394,6 +407,7 @@ export default function Processing() {
     setIsCompleted(false);
     setElapsedSeconds(0);
     setSocketError(null);
+    sessionStorage.setItem("audit_is_processing", "true");
     setTerminalLogs([
       {
         id: `start-${Date.now()}`,
@@ -404,10 +418,52 @@ export default function Processing() {
     connectWebSocket(activeAuditId);
   };
 
+  const handleTerminate = async () => {
+    if (!isProcessing) return;
+
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      try {
+        socketRef.current.send(JSON.stringify({ type: "terminate" }));
+      } catch (err) {
+        console.warn("[WebSocket] Failed to send terminate message:", err);
+      }
+    }
+
+    try {
+      await fetch(`http://127.0.0.1:8000/api/audit/${auditId}/terminate`, {
+        method: "POST",
+      });
+    } catch (err) {
+      console.warn("[API] Terminate endpoint call failed:", err);
+    }
+
+    sessionStorage.removeItem("audit_is_processing");
+    setCurrentStage("ready");
+    setTerminalLogs((prev) => [
+      ...prev,
+      {
+        id: `term-${Date.now()}`,
+        stream: "warning",
+        text: `> [SYSTEM] Audit execution terminated by user.`,
+      },
+    ]);
+  };
+
+
+  // Auto-reconnect to ongoing background audit on mount
+  useEffect(() => {
+    const isOngoing = sessionStorage.getItem("audit_is_processing") === "true";
+    const hasResults = Boolean(sessionStorage.getItem("audit_results"));
+    if (isOngoing && !hasResults) {
+      connectWebSocket(auditId);
+    }
+  }, []);
+
   useEffect(() => {
     return () => {
       if (socketRef.current) {
         socketRef.current.close();
+        socketRef.current = null;
       }
     };
   }, []);
@@ -584,6 +640,17 @@ export default function Processing() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {isProcessing && (
+                <button
+                  type="button"
+                  onClick={handleTerminate}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 transition-all shadow-xs cursor-pointer active:scale-95"
+                  title="Terminate ongoing audit"
+                >
+                  <i className="bi bi-stop-circle text-rose-600 text-xs" />
+                  <span>Terminate</span>
+                </button>
+              )}
               <div
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold font-mono border transition-all shadow-xs",
@@ -708,8 +775,8 @@ export default function Processing() {
       {/* Bottom Card: Terminal Log (Theme White) */}
       <TerminalLog
         logs={terminalLogs}
-        onClear={() => setTerminalLogs([])}
         onProcess={handleStartProcess}
+        onTerminate={handleTerminate}
         isProcessing={isProcessing}
         viewResultsUrl={`/results/${auditId}`}
         isCompleted={isCompleted}
