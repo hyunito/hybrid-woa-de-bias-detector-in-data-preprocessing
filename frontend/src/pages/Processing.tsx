@@ -145,7 +145,16 @@ export default function Processing() {
     return sessionStorage.getItem("audit_results") ? "completed" : "ready";
   });
 
-  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(() => {
+    const savedFinal = sessionStorage.getItem("audit_final_elapsed_seconds");
+    if (savedFinal) return parseInt(savedFinal, 10) || 0;
+
+    const startTs = sessionStorage.getItem("audit_start_timestamp");
+    if (startTs) {
+      return Math.max(0, Math.floor((Date.now() - parseInt(startTs, 10)) / 1000));
+    }
+    return 0;
+  });
   const isProcessing = currentStage === "connecting" || currentStage === "pipeline" || currentStage === "evaluating";
 
   // Synchronize terminal logs & chart data to sessionStorage for Results page
@@ -188,9 +197,15 @@ export default function Processing() {
   // Live Timer: runs while executing pipeline or search
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
-    if (currentStage === "pipeline" || currentStage === "evaluating") {
+    if (currentStage === "connecting" || currentStage === "pipeline" || currentStage === "evaluating") {
       interval = setInterval(() => {
-        setElapsedSeconds((prev) => prev + 1);
+        const startTs = sessionStorage.getItem("audit_start_timestamp");
+        if (startTs) {
+          const calculated = Math.max(0, Math.floor((Date.now() - parseInt(startTs, 10)) / 1000));
+          setElapsedSeconds(calculated);
+        } else {
+          setElapsedSeconds((prev) => prev + 1);
+        }
       }, 1000);
     }
     return () => {
@@ -236,7 +251,15 @@ export default function Processing() {
         try {
           const msg = JSON.parse(event.data);
 
-          if (msg.type === "pipeline_start") {
+          if (msg.type === "audit_sync") {
+            if (typeof msg.start_time === "number" && !sessionStorage.getItem("audit_final_elapsed_seconds")) {
+              const startMs = Math.round(msg.start_time * 1000);
+              sessionStorage.setItem("audit_start_timestamp", startMs.toString());
+              setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startMs) / 1000)));
+            } else if (typeof msg.elapsed_seconds === "number" && sessionStorage.getItem("audit_final_elapsed_seconds")) {
+              setElapsedSeconds(msg.elapsed_seconds);
+            }
+          } else if (msg.type === "pipeline_start") {
             setCurrentStage("pipeline");
             setActiveScriptIndex(0);
             if (msg.scripts && Array.isArray(msg.scripts)) {
@@ -300,6 +323,15 @@ export default function Processing() {
             setAuditId(completedAuditId);
             sessionStorage.setItem("current_audit_id", completedAuditId);
 
+            const startTs = sessionStorage.getItem("audit_start_timestamp");
+            const finalSecs = typeof msg.elapsed_seconds === "number"
+              ? msg.elapsed_seconds
+              : (startTs
+                  ? Math.max(0, Math.floor((Date.now() - parseInt(startTs, 10)) / 1000))
+                  : elapsedSeconds);
+            setElapsedSeconds(finalSecs);
+            sessionStorage.setItem("audit_final_elapsed_seconds", finalSecs.toString());
+
             // Store full results in sessionStorage
             if (msg.results) {
               sessionStorage.setItem("audit_results", JSON.stringify(msg.results));
@@ -323,6 +355,14 @@ export default function Processing() {
           } else if (msg.type === "terminated") {
             sessionStorage.removeItem("audit_is_processing");
             setCurrentStage("ready");
+            const startTs = sessionStorage.getItem("audit_start_timestamp");
+            const finalSecs = typeof msg.elapsed_seconds === "number"
+              ? msg.elapsed_seconds
+              : (startTs
+                  ? Math.max(0, Math.floor((Date.now() - parseInt(startTs, 10)) / 1000))
+                  : elapsedSeconds);
+            setElapsedSeconds(finalSecs);
+            sessionStorage.setItem("audit_final_elapsed_seconds", finalSecs.toString());
             setTerminalLogs((prev) => [
               ...prev,
               {
@@ -407,6 +447,9 @@ export default function Processing() {
     setIsCompleted(false);
     setElapsedSeconds(0);
     setSocketError(null);
+    const startNow = Date.now();
+    sessionStorage.setItem("audit_start_timestamp", startNow.toString());
+    sessionStorage.removeItem("audit_final_elapsed_seconds");
     sessionStorage.setItem("audit_is_processing", "true");
     setTerminalLogs([
       {
@@ -439,6 +482,12 @@ export default function Processing() {
 
     sessionStorage.removeItem("audit_is_processing");
     setCurrentStage("ready");
+    const startTs = sessionStorage.getItem("audit_start_timestamp");
+    if (startTs) {
+      const finalSecs = Math.max(0, Math.floor((Date.now() - parseInt(startTs, 10)) / 1000));
+      setElapsedSeconds(finalSecs);
+      sessionStorage.setItem("audit_final_elapsed_seconds", finalSecs.toString());
+    }
     setTerminalLogs((prev) => [
       ...prev,
       {
@@ -633,24 +682,13 @@ export default function Processing() {
           <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-2">
             <div>
               <h2 className="text-sm font-bold tracking-tight text-[#0F1B2B] uppercase">
-                Convergence Monitor
+                Algorithm Monitor
               </h2>
               <p className="text-[11px] text-slate-500 font-medium">
                 Unique bias scores tracked across evaluations
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {isProcessing && (
-                <button
-                  type="button"
-                  onClick={handleTerminate}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 transition-all shadow-xs cursor-pointer active:scale-95"
-                  title="Terminate ongoing audit"
-                >
-                  <i className="bi bi-stop-circle text-rose-600 text-xs" />
-                  <span>Terminate</span>
-                </button>
-              )}
               <div
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold font-mono border transition-all shadow-xs",

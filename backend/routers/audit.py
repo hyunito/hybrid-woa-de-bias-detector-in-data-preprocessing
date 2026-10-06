@@ -31,6 +31,8 @@ class AuditSession:
         self.search_task: Optional[asyncio.Task] = None
         self.task: Optional[asyncio.Task] = None
         self.is_terminated = False
+        self.start_time: float = time.time()
+        self.end_time: Optional[float] = None
         self.subscribers: Set[WebSocket] = set()
 
     async def broadcast(self, message: dict):
@@ -93,10 +95,14 @@ class AuditSession:
             "stream": "warning",
             "text": "> [SYSTEM] Audit session was terminated by user."
         })
+        if not self.end_time:
+            self.end_time = time.time()
+        elapsed_s = int(self.end_time - self.start_time)
         await self.broadcast({
             "type": "terminated",
             "audit_id": self.audit_id,
-            "message": "Audit session was terminated by user."
+            "message": "Audit session was terminated by user.",
+            "elapsed_seconds": elapsed_s
         })
 
 
@@ -426,6 +432,8 @@ async def run_full_audit(session: AuditSession):
             "chart_points": chart_points_history
         }
 
+        session.end_time = time.time()
+        elapsed_s = int(session.end_time - session.start_time)
         final_record = save_audit_result(session.audit_id, raw_results, threshold)
 
         await session.broadcast({
@@ -433,7 +441,8 @@ async def run_full_audit(session: AuditSession):
             "audit_id": session.audit_id,
             "total_ranked_findings": final_record["total_ranked_findings"],
             "qualifying_recommendations": final_record["qualifying_recommendations"],
-            "results": final_record["results"]
+            "results": final_record["results"],
+            "elapsed_seconds": elapsed_s
         })
 
         session.status = "completed"
@@ -482,6 +491,17 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
     session.subscribers.add(websocket)
 
     try:
+        # Send live timing sync immediately
+        elapsed_s = int((session.end_time or time.time()) - session.start_time)
+        await websocket.send_json({
+            "type": "audit_sync",
+            "audit_id": session.audit_id,
+            "start_time": session.start_time,
+            "elapsed_seconds": elapsed_s,
+            "is_completed": session.status == "completed",
+            "is_terminated": session.status == "terminated"
+        })
+
         # Replay historical state so reconnected client catches up immediately
         if session.pipeline_scripts:
             await websocket.send_json({
@@ -513,10 +533,12 @@ async def audit_websocket(websocket: WebSocket, audit_id: str):
                 "message": "Starting PROBA..."
             })
         elif session.stage == "completed" and session.results:
+            elapsed_s = int((session.end_time or time.time()) - session.start_time)
             await websocket.send_json({
                 "type": "completed",
                 "audit_id": session.audit_id,
-                "results": session.results
+                "results": session.results,
+                "elapsed_seconds": elapsed_s
             })
         elif session.stage == "terminated":
             await websocket.send_json({
