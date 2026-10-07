@@ -480,7 +480,7 @@ export default function Settings() {
           <div className="border border-slate-300/90 rounded-2xl p-3 px-6 bg-white shadow-xs">
             <div className="flex items-center justify-between text-xs">
               <ParamLabel
-                label="BIAS THESHOLD"
+                label="BIAS THRESHOLD"
                 tooltip="The disparity tolerance level above which a demographic group is officially flagged as biased."
               />
               <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
