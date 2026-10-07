@@ -6,7 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from hybrid_woa import WOAAuditor
 from hybrid_de import DEAuditor
 
-runs = 1
+runs = 30
 process = psutil.Process(os.getpid())
 
 
@@ -31,8 +31,6 @@ for run in range(runs):
         "transformation": result["transformation_name"],
         "demographic": result["demographic_group"],
         "execution_time": execution_time,
-        "peak_ram_mb": peak_ram_mb,
-        "traceability": result["traceability"]
-        
+        "peak_ram_mb": peak_ram_mb
     })
-    print(f"Transformation: {result['transformation_name']} | Score: {result['max_fitness_score']:.4f}\nTime: {execution_time:.4f}s | Peak RAM Usage: {peak_ram_mb:.6f}MB | Traceability Rate: {result['traceability']}")
+    print(f"Transformation: {result['transformation_name']} | Score: {result['max_fitness_score']:.4f}\nTime: {execution_time:.4f}s | Peak RAM Usage: {peak_ram_mb:.6f}MB")
