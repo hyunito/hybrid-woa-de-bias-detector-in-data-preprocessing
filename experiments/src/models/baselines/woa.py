@@ -2,13 +2,10 @@ import numpy as np
 import math
 import random
 import fitness
-#from audit import all_biases
 
-all_biases = []
-correct = 0
 class WOAAuditor:
     
-    def __init__(self, metadata_logs=None, num_whales=30, max_iter=15):
+    def __init__(self, metadata_logs=None, num_whales=10, max_iter=250):
         """
         Initializes the WOA Auditor with a 3D search space.
         :param metadata_logs: Optional list of dictionaries representing the JSONB logs.
@@ -78,12 +75,8 @@ class WOAAuditor:
         """
         Calls calculate_3d_fitness using s_idx, t_idx, d_idx coordinates.
         """
-        global correct
     
         score, _, trans_name, _ = fitness.calculate_3d_fitness(pos[0], pos[1], pos[2])
-        
-        if trans_name == "Num Outlier":
-            correct+=1
       
         return score
 
@@ -161,18 +154,7 @@ class WOAAuditor:
                     b = 1 
                     new_pos = D_prime * math.exp(b * l) * math.cos(2 * math.pi * l) + self.best_position
                 whales_pos[i] = self.clip_position(new_pos)
-
-                # SAVED ALL RECORDS
-                dummy_fit, dummy_script, dummy_trans, dummy_demo = fitness.calculate_3d_fitness(whales_pos[i][0], whales_pos[i][1], whales_pos[i][2])
-                all_biases.append({
-                "fitness_score": dummy_fit,
-                "script_name": dummy_script,
-                "transformation_name": dummy_trans,
-                "demographic_group": dummy_demo
-                })
                 
-        global correct
-        traceability = correct / (n-1)
         best_fitness, best_script, best_trans, best_demo = fitness.calculate_3d_fitness(
             self.best_position[0], self.best_position[1], self.best_position[2]
         )
@@ -198,7 +180,6 @@ class WOAAuditor:
             "transformation_name": best_trans,
             "demographic_group": best_demo,
             "whales": whales_info,
-            "traceability": traceability
         }
 
 if __name__ == "__main__":

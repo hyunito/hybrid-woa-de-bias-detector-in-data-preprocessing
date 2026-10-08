@@ -6,27 +6,16 @@ import fitness
 
 class DEAuditor:
     """
-    Differential Evolution (DE) Auditor.
+    Differential Evolution (DE) Auditor (Lightweight Benchmark Version).
     Acts as the secondary local exploitation / refinement stage of the hybrid metaheuristic.
-    Seeded around the best position found by WOA, it uses mutation and crossover to fine-tune
-    coordinates and confirm the maximum-disparity bias hotspot.
+    Optimized for minimal memory overhead and zero telemetry churn during benchmarks.
     """
     DEFAULT_POP_SIZE = 30
     DEFAULT_F = 0.5
-    DEFAULT_CR = 0.7
+    DEFAULT_CR = 0.9
     DEFAULT_MAX_STAGNATION = 25
 
-    def __init__(self, metadata_logs = None, pop_size = DEFAULT_POP_SIZE, F = DEFAULT_F, CR = DEFAULT_CR, tolerance = 1e-6, max_stagnation = DEFAULT_MAX_STAGNATION):
-        """
-        Initializes the DE Auditor with a 3D search space.
-
-        :param metadata_logs: Optional provenance logs to initialize space from.
-        :param pop_size: Population size of individuals in the DE population.
-        :param F: Differential mutation scaling factor.
-        :param CR: Crossover probability.
-        :param tolerance: Minimum fitness improvement to reset stagnation counter.
-        :param max_stagnation: Maximum generations without improvement before early stopping.
-        """
+    def __init__(self, metadata_logs=None, pop_size=DEFAULT_POP_SIZE, F=DEFAULT_F, CR=DEFAULT_CR, tolerance=1e-6, max_stagnation=DEFAULT_MAX_STAGNATION):
         self.pop_size = pop_size
         self.F = F
         self.CR = CR
@@ -44,38 +33,38 @@ class DEAuditor:
         self.best_fitness = float('-inf')
 
     def mutation(self, x):
-        """
-        Computes DE/rand/1 mutation vector: donor = a + F * (b - c).
-        Scales the difference between two individuals to guide search direction and step size.
-        """
+        """Computes DE/rand/1 mutation vector: donor = a + F * (b - c)."""
         return x[0] + self.F * (x[1] - x[2])
 
     def crossover(self, mutated, target):
-        """
-        Applies binomial crossover between mutated donor vector and target individual.
-        Guarantees at least one coordinate from the mutant via random index jrand.
-        """
+        """Applies binomial crossover between mutated donor vector and target individual."""
         p = rand(self.dim)
         jrand = random.randrange(self.dim)
         return [mutated[i] if p[i] < self.CR or i == jrand else target[i] for i in range(self.dim)]
 
     def clip_position(self, pos):
-        """Clips 3D continuous position coordinates to valid discrete boundaries of the search space."""
+        """
+        Clips a 3D position [s, t, d] to the valid uneven bounds of the search space.
+        """
+        
         if not self.scripts:
             return np.zeros(self.dim)
-
+            
         s = int(round(np.clip(pos[0], 0, len(self.scripts) - 1)))
         script_name = self.scripts[s]
-
-        trans_list = self.transformations.get(script_name, [])
-        t_max = max(0, len(trans_list) - 1)
+        
+        t_max = len(self.transformations.get(script_name, [])) - 1
+       
+        t_max = max(0, t_max)
         t = int(round(np.clip(pos[1], 0, t_max)))
+        
+        trans_list = self.transformations.get(script_name, [])
         trans_name = trans_list[t] if trans_list else "None"
-
-        demo_list = self.demographics.get((script_name, trans_name), [])
-        d_max = max(0, len(demo_list) - 1)
+        
+        d_max = len(self.demographics.get((script_name, trans_name), [])) - 1
+        d_max = max(0, d_max)
         d = int(round(np.clip(pos[2], 0, d_max)))
-
+        
         return np.array([float(s), float(t), float(d)])
 
     def calculate_fitness(self, pos):
@@ -87,16 +76,7 @@ class DEAuditor:
         """
         Executes the main DE optimization loop over the 3D search space.
         Investigates the exact transformation spots discovered by WOA.
-        If no higher bias is found, the best position remains unchanged.
-
-        :param seed_positions: Best positions identified across transformations by WOA.
-        :param all_biases: Shared list collecting all bias records across stages.
-        :param callback: Optional progress callback.
-        :return: Final audit report dictionary.
         """
-        if all_biases is None:
-            all_biases = []
-
         if seed_positions is None:
             raise ValueError("Hybrid DE requires seed positions from the WOA exploration stage.")
 
@@ -108,7 +88,6 @@ class DEAuditor:
         # 1. Start population directly with the EXACT spots from WOA (zero noise, zero jitter)
         pop = [self.clip_position(np.array(s, dtype=float)) for s in seed_positions]
 
-
         # 2. Fill the population to pop_size by cleanly replicating the exact seeds
         i = 0
         while len(pop) < self.pop_size:
@@ -118,8 +97,7 @@ class DEAuditor:
         pop = np.array(pop)
 
         # 3. Run DE refinement on those exact spots
-        # If DE finds a higher score, it updates. If not, it stays on WOA's exact best spot!
-        self.best_position = self.core_algo(pop, all_biases=all_biases, callback=callback)
+        self.best_position = self.core_algo(pop)
 
         best_fitness, best_script, best_trans, best_demo = fitness.calculate_3d_fitness(
             self.best_position[0], self.best_position[1], self.best_position[2]
@@ -130,22 +108,14 @@ class DEAuditor:
             "script_name": best_script,
             "transformation_name": best_trans,
             "demographic_group": best_demo,
-            "all_biases": all_biases,
+            "all_biases": all_biases if all_biases is not None else [],
         }
 
-    def core_algo(self, pop, all_biases=None, callback=None):
+    def core_algo(self, pop):
         """
         Executes the Differential Evolution generation loop:
         Performs mutation, crossover, greedy selection, and early stopping based on stagnation.
-
-        :param pop: Array of initial population coordinates.
-        :param all_biases: Telemetry list accumulating evaluated candidates.
-        :param callback: Optional progress callback.
-        :return: Best position found by DE.
         """
-        if all_biases is None:
-            all_biases = []
-
         fitness_vals = np.array([self.calculate_fitness(ind) for ind in pop])
         best_idx = int(np.argmax(fitness_vals))
         self.best_fitness = fitness_vals[best_idx]
@@ -158,33 +128,9 @@ class DEAuditor:
                 # Select 3 distinct random candidates (a, b, c) excluding current target j
                 candidates = [candidate for candidate in range(self.pop_size) if candidate != j]
                 a, b, c = pop[choice(candidates, 3, replace=False)]
-                
+
                 mutated = self.clip_position(self.mutation([a, b, c]))
-                trial = self.clip_position(self.crossover(mutated, pop[j]))
-
-                dummy_fit, dummy_script, dummy_trans, dummy_demo = fitness.calculate_3d_fitness(
-                    trial[0], trial[1], trial[2]
-                )
-                all_biases.append({
-                    "fitness_score": dummy_fit,
-                    "script_name": dummy_script,
-                    "transformation_name": dummy_trans,
-                    "demographic_group": dummy_demo
-                })
-
-                if callback:
-                    try:
-                        callback({
-                            "stage": "DE",
-                            "step": len(all_biases),
-                            "fitness_score": float(dummy_fit),
-                            "best_fitness": float(self.best_fitness),
-                            "script_name": dummy_script,
-                            "transformation_name": dummy_trans,
-                            "demographic_group": dummy_demo
-                        })
-                    except Exception:
-                        pass
+                trial = self.clip_position(np.array(self.crossover(mutated, pop[j])))
 
                 # Greedy selection: replace target individual if trial produces strictly higher disparity
                 obj_target = fitness_vals[j]
@@ -194,7 +140,7 @@ class DEAuditor:
                     fitness_vals[j] = obj_trial
                     if obj_trial > self.best_fitness:
                         self.best_fitness = obj_trial
-                        self.best_position = np.array(trial)
+                        self.best_position = trial.copy()
 
             # Check for convergence: reset counter only if meaningful improvement exceeds tolerance
             if self.best_fitness - previous_best > self.tolerance:

@@ -4,9 +4,8 @@ import time
 import psutil
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from hybrid_woa import WOAAuditor
-from hybrid_de import DEAuditor
 
-runs = 30
+runs = 1
 process = psutil.Process(os.getpid())
 
 

@@ -26,7 +26,7 @@ const DEFAULT_ALGO_SETTINGS = {
   maxIterations: 30,
   populationSize: 30,
   scaleFactor: 0.5,
-  crossoverRate: 0.7,
+  crossoverRate: 0.9,
   maxStagnationLimit: 25,
   biasThreshold: 0.2,
 };
@@ -108,13 +108,8 @@ export default function Settings() {
           if (isMounted) {
             setSettings((prev) => ({
               ...prev,
-              searchingAgents: Number(algoData.searchingAgents ?? 30),
-              maxIterations: Number(algoData.maxIterations ?? 30),
-              populationSize: Number(algoData.populationSize ?? 30),
-              scaleFactor: Number(algoData.scaleFactor ?? 0.5),
-              crossoverRate: Number(algoData.crossoverRate ?? 0.7),
-              maxStagnationLimit: Number(algoData.maxStagnationLimit ?? 25),
-              biasThreshold: Number(algoData.biasThreshold ?? 0.2),
+              ...DEFAULT_ALGO_SETTINGS,
+              ...algoData,
             }));
           }
         }
