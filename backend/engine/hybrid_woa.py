@@ -2,8 +2,9 @@
 PROGRAM TITLE:
     PROBA: Whale Optimization Algorithm (WOA) Module
 
-PROGRAMMER:
+PROGRAMMERS:
     Gonzales, Eujen C.
+    Silvor, Cyrus C.
     
 WHERE PROGRAM FITS IN GENERAL SYSTEM DESIGN:
     Component: Backend Algorithmic Core (Process Layer)
