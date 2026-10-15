@@ -8,6 +8,7 @@ _scripts = []
 _transformations = {} 
 _demographics = {}       
 _fitness_cache = {} 
+_fitness_details_cache = {}
 
 
 def load_provenance_data(rows, reload: bool = False):
@@ -19,7 +20,7 @@ def load_provenance_data(rows, reload: bool = False):
     :param rows: List of JSONB provenance dictionaries from tracking pipeline.
     :param reload: When True, invalidates existing cache and re-computes dimensions.
     """
-    global _logs_cache, _scripts, _transformations, _demographics, _fitness_cache
+    global _logs_cache, _scripts, _transformations, _demographics, _fitness_cache, _fitness_details_cache
     if _logs_cache is not None and not reload:
         return
     
@@ -27,7 +28,7 @@ def load_provenance_data(rows, reload: bool = False):
     _transformations = {}
     _demographics = {}
     _fitness_cache = {}
-    
+    _fitness_details_cache = {}
     for log_data in rows:
         script = log_data.get("script_name")
         trans = log_data.get("transformation_name")
@@ -59,14 +60,25 @@ def load_provenance_data(rows, reload: bool = False):
             if rate_target is None:
                 rate_target = target_data.get("selection_rate", 0.0)
                 
+
             # Compound fairness objective: Statistical Parity Difference (SPD) + |1 - Disparate Impact (DI)|
-            # Higher fitness indicates severe demographic disparity introduced by this transformation
             spd = abs(rate_target - rate_priv)
             di = rate_target / (rate_priv + 1e-5)
+
+            _fitness_details_cache[(script, trans, demo_key)] = {
+                "spd": spd,
+                "di": di,
+                "di_penalty": abs(1 - di),
+                "rate_target": rate_target
+            }
+
             _fitness_cache[(script, trans, demo_key)] = spd + abs(1 - di)
         
     _logs_cache = True
 
+def get_fitness_detail(script_name: str, trans_name: str, demo_key: str) -> dict:
+    """Returns the granular disparity breakdown for a specific demographic group."""
+    return _fitness_details_cache[(script_name, trans_name, demo_key)]
 
 def _load_records_from_json(path: str):
     """Loads provenance records from local JSON fallback file if database is unavailable."""

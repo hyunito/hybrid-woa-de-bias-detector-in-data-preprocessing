@@ -21,9 +21,15 @@ interface RankedBias {
   demographic_group: string;
   source?: string;
   selection_rate?: number;
+  spd?: number;
+  di?: number;
+  di_penalty?: number;
+  di_percentage?: number;
+  explanation?: string;
 }
 
 interface ReferenceItem {
+  title?: string;
   citation: string;
   url: string;
 }
@@ -95,6 +101,21 @@ function ParamLabel({ label, tooltip, color }: ParamLabelProps) {
   );
 }
 
+const DEFAULT_FAIRNESS_REFERENCES: ReferenceItem[] = [
+  {
+    title: "Statistical Parity Difference (SPD)",
+    citation:
+      "Mehrabi, N., Morstatter, F., Saxena, N., Lerman, K., & Galstyan, A. (2021). A Survey on Bias and Fairness in Machine Learning. ACM Computing Surveys, 54(6), pp. 1–35.",
+    url: "https://doi.org/10.1145/3457607",
+  },
+  {
+    title: "Disparate Impact (DI) — 80% Rule",
+    citation:
+      "Pessach, D., & Shmueli, E. (2022). A Review on Fairness in Machine Learning. ACM Computing Surveys, 55(3), pp. 1–44.",
+    url: "https://doi.org/10.1145/3494672",
+  },
+];
+
 export default function Results() {
   const { auditId: paramAuditId } = useParams();
   const navigate = useNavigate();
@@ -118,6 +139,7 @@ export default function Results() {
   const [provenanceRecords, setProvenanceRecords] = useState<ProvenanceRecord[]>([]);
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
   const [threshold, setThreshold] = useState<number>(0.2);
+  const [fairnessReferences, setFairnessReferences] = useState<ReferenceItem[]>(DEFAULT_FAIRNESS_REFERENCES);
 
   // UI Selection State
   const [selectedBiasIndex, setSelectedBiasIndex] = useState<number>(0);
@@ -184,6 +206,9 @@ export default function Results() {
               if (Array.isArray(res.chart_points) && res.chart_points.length > 0) {
                 setChartData(res.chart_points);
               }
+              if (Array.isArray(res.references) && res.references.length > 0) {
+                setFairnessReferences(res.references);
+              }
               if (typeof res.threshold === "number") setThreshold(res.threshold);
               foundInSession = true;
             }
@@ -206,6 +231,9 @@ export default function Results() {
             if (Array.isArray(results.provenance_records)) setProvenanceRecords(results.provenance_records);
             if (Array.isArray(results.chart_points) && results.chart_points.length > 0) {
               setChartData(results.chart_points);
+            }
+            if (Array.isArray(results.references) && results.references.length > 0) {
+              setFairnessReferences(results.references);
             }
             if (typeof data.threshold === "number") setThreshold(data.threshold);
             foundInSession = true;
@@ -289,6 +317,26 @@ export default function Results() {
     return [{ key: "Subgroup", value: raw }];
   }, [currentBias]);
 
+  const formattedGroupLabel = useMemo(() => {
+    if (parsedDemographics.length === 0) return "";
+    return parsedDemographics.map((d) => `${d.key}: ${d.value}`).join(", ");
+  }, [parsedDemographics]);
+
+  const displayedExplanation = useMemo(() => {
+    if (!currentBias?.explanation) return "";
+    if (
+      formattedGroupLabel &&
+      currentBias.explanation.includes("this group had") &&
+      !currentBias.explanation.includes(`(${formattedGroupLabel})`)
+    ) {
+      return currentBias.explanation.replace(
+        "this group had",
+        `this group (${formattedGroupLabel}) had`
+      );
+    }
+    return currentBias.explanation;
+  }, [currentBias, formattedGroupLabel]);
+
   const handleCopyId = () => {
     navigator.clipboard.writeText(auditId);
     setCopiedId(true);
@@ -322,7 +370,7 @@ export default function Results() {
   return (
     <div className="flex flex-col justify-start gap-3.5 max-w-7xl mx-auto w-full pb-6">
       {/* Top Header Card */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm py-3.5 px-6 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm py-3.5 px-6 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold tracking-tight text-[#0F1B2B]">
@@ -359,6 +407,7 @@ export default function Results() {
         </div>
       </div>
 
+
       {/* Error or Empty State Banner */}
       {errorMessage && (
         <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl p-4 text-xs flex items-center justify-between">
@@ -376,31 +425,19 @@ export default function Results() {
         </div>
       )}
 
-      {/* Main Grid: Left Card + Right Card */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* Left Column: Stacked Card Deck with Swapping Animation */}
-        <div className="lg:col-span-7 relative pt-7">
-          {/* Back Card (Smaller in width and height, tucked behind front card) */}
+      {/* Main Stack: Audit Report on top, Bias Scores below */}
+      <div className="flex flex-col gap-8">
+        {/* Top Section: Stacked Card Deck with Swapping Animation */}
+        <div className="w-full relative pt-7">
+          {/* Back Card (Plain flat solid background, no gradients) */}
           <div
             onClick={() => setActiveView(activeView === "lineage" ? "mitigation" : "lineage")}
-            className={cn(
-              "absolute inset-x-6 top-0 h-28 rounded-2xl border transition-all duration-300 cursor-pointer shadow-xs group hover:-top-1 z-0",
-              activeView === "lineage"
-                ? "bg-gradient-to-r from-emerald-50/90 via-teal-50/90 to-emerald-50/80 border-emerald-300/80 hover:border-emerald-400"
-                : "bg-gradient-to-r from-blue-50/90 via-indigo-50/90 to-blue-50/80 border-blue-300/80 hover:border-blue-400"
-            )}
+            className="absolute inset-x-6 top-0 h-28 rounded-2xl border transition-all duration-300 cursor-pointer shadow-xs group hover:-top-1 z-0 bg-slate-100 border-slate-300 hover:border-slate-400"
           >
             {/* Peeking Header of the Back Card */}
             <div className="flex items-center justify-between px-4 pt-1.5 pb-2">
               <div className="flex items-center gap-2">
-                <div
-                  className={cn(
-                    "w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shadow-2xs",
-                    activeView === "lineage"
-                      ? "bg-emerald-600 text-white"
-                      : "bg-blue-600 text-white"
-                  )}
-                >
+                <div className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold bg-slate-700 text-white shadow-2xs">
                   <i
                     className={cn(
                       "bi",
@@ -408,18 +445,13 @@ export default function Results() {
                     )}
                   />
                 </div>
-                <span
-                  className={cn(
-                    "text-[10px] sm:text-[11px] font-bold uppercase tracking-wider",
-                    activeView === "lineage" ? "text-emerald-900" : "text-blue-900"
-                  )}
-                >
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-700">
                   {activeView === "lineage"
                     ? "RECOMMENDED ACTIONS"
                     : "AUDIT REPORT"}
                 </span>
                 {activeView === "lineage" && matchingRecommendation?.recommended_actions?.length ? (
-                  <span className="text-[10px] font-mono font-bold bg-white text-emerald-800 border border-emerald-300 px-1.5 py-0.2 rounded-full shadow-2xs">
+                  <span className="text-[10px] font-mono font-bold bg-white text-slate-700 border border-slate-300 px-1.5 py-0.2 rounded-full shadow-2xs">
                     {matchingRecommendation.recommended_actions.length} actions
                   </span>
                 ) : null}
@@ -428,14 +460,14 @@ export default function Results() {
             </div>
           </div>
           {/* Active Front Card (Full width, larger, casts shadow onto back card) */}
-          <div className="relative z-10 bg-white rounded-3xl border border-slate-200/90 shadow-md p-6 flex flex-col justify-between overflow-hidden">
+          <div className="relative z-10 bg-white rounded-3xl border border-slate-200 shadow-md p-6 flex flex-col justify-between overflow-hidden">
             <div>
-              {/* Card Header (Spacious, with Swapped Icon Button) */}
+              {/* Card Header (Plain, simple, no fancy badges) */}
               <div className="border-b border-slate-100 pb-4 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div
                     className={cn(
-                      "w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 transition-colors shadow-2xs",
+                      "w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0",
                       activeView === "lineage"
                         ? "bg-blue-50 text-blue-600 border border-blue-100"
                         : "bg-emerald-50 text-emerald-600 border border-emerald-100"
@@ -449,12 +481,25 @@ export default function Results() {
                     />
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-sm font-bold tracking-tight text-[#0F1B2B] uppercase truncate">
-                      {activeView === "lineage"
-                        ? "AUDIT REPORT"
-                        : "RECOMMENDED ACTIONS"}
-                    </h2>
-                    <span className="text-[11px] text-slate-500 font-medium truncate block">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h2 className="text-sm font-bold tracking-tight text-[#0F1B2B] uppercase truncate">
+                        {activeView === "lineage"
+                          ? "AUDIT REPORT"
+                          : "RECOMMENDED ACTIONS"}
+                      </h2>
+                      {rankedBiases.length > 0 ? (
+                        <span className="text-xs sm:text-[13px] font-bold uppercase tracking-wide bg-rose-50 text-rose-700 border border-rose-300 px-3 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+                          <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" />
+                          Your dataset has a BIAS
+                        </span>
+                      ) : (
+                        <span className="text-xs sm:text-[13px] font-bold uppercase tracking-wide bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+                          <i className="bi bi-check-circle-fill text-emerald-600 text-sm" />
+                          Your dataset is NOT BIASED
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-slate-500 font-medium truncate block mt-0.5">
                       {activeView === "lineage"
                         ? "Provenance metadata and root-cause transformation analysis"
                         : `Mitigation recommendations for ${currentBias?.transformation_name || "selected finding"}`}
@@ -462,11 +507,11 @@ export default function Results() {
                   </div>
                 </div>
 
-                {/* Swapped Icon Button (Replaces dual buttons) */}
+                {/* Swapped Icon Button */}
                 <button
                   type="button"
                   onClick={() => setActiveView(activeView === "lineage" ? "mitigation" : "lineage")}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200/90 shadow-2xs hover:shadow-xs transition-all cursor-pointer group shrink-0 self-start sm:self-auto"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 shadow-2xs hover:shadow-xs transition-all cursor-pointer group shrink-0 self-start sm:self-auto"
                   title={
                     activeView === "lineage"
                       ? "Swap view to Recommended Actions"
@@ -475,7 +520,7 @@ export default function Results() {
                 >
                   <div
                     className={cn(
-                      "w-6 h-6 rounded-lg flex items-center justify-center transition-colors shadow-2xs",
+                      "w-6 h-6 rounded-lg flex items-center justify-center transition-colors",
                       activeView === "lineage"
                         ? "bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white"
                         : "bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white"
@@ -527,10 +572,10 @@ export default function Results() {
                 </div>
               ) : (
                 /* Card Swap Animated Container */
-                <div key={activeView} className="animate-card-swap space-y-3.5">
+                <div key={activeView} className="animate-card-swap space-y-4 sm:space-y-5">
                   {activeView === "lineage" ? (
                     /* ================= SIDE A: TRACEABILITY LINEAGE ================= */
-                    <div className="space-y-3.5">
+                    <div className="space-y-4 sm:space-y-5">
                       {/* Subgroup Selector Pills (Top 10 + See More) */}
                       {rankedBiases.length > 1 && (
                         <div className="mb-4">
@@ -589,12 +634,150 @@ export default function Results() {
                         </div>
                       )}
 
-                      {/* Script Name & Transformation (Both Clean White Backgrounds) */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* ================= HIGH-EMPHASIS TRANSPARENCY & BIAS EXPLANATION HERO ================= */}
+                      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs hover:border-slate-300 transition-all flex flex-col gap-4 sm:gap-5">
+                        {/* Section Header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <span className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                              <i className="bi bi-shield-check text-base" />
+                            </span>
+                            <div>
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight">
+                                Transparency Breakdown & Bias Explanation
+                              </h4>
+                              <span className="text-[11px] text-slate-500 font-medium">
+                                Mathematical dissection of demographic disparity and legal thresholds
+                              </span>
+                            </div>
+                          </div>
+
+                        </div>
+
+                        {/* Three Key Fairness Metric Cards */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
+                          {/* 1. Total Compound Bias Score */}
+                          <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col justify-between gap-2 hover:border-slate-300 transition-all">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-rose-600 flex items-center gap-1.5">
+                                <i className="bi bi-exclamation-triangle-fill text-xs text-rose-500" />
+                                Bias Score (Total Disparity)
+                              </span>
+                              <span className="text-[10px] font-mono font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">
+                                &gt; {threshold.toFixed(2)}
+                              </span>
+                            </div>
+                            <span className="text-2xl sm:text-3xl font-black font-mono text-rose-600 tracking-tight">
+                              {currentBias.fitness_score.toFixed(4)}
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-medium">
+                              Combined: <strong className="text-slate-700 font-mono">{currentBias.spd != null ? currentBias.spd.toFixed(2) : "0.00"}</strong> (SPD) + <strong className="text-slate-700 font-mono">{(currentBias.di_penalty ?? (currentBias.di != null ? Math.abs(1 - currentBias.di) : 0)).toFixed(2)}</strong> (DI)
+                            </span>
+                          </div>
+
+                          {/* 2. Statistical Parity Difference (SPD) */}
+                          <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col justify-between gap-2 hover:border-slate-300 transition-all">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
+                                <i className="bi bi-distribute-vertical text-xs text-amber-600" />
+                                Absolute Gap (SPD)
+                              </span>
+                            </div>
+                            <span className="text-2xl sm:text-3xl font-black font-mono text-amber-800 tracking-tight">
+                              {currentBias.spd != null ? currentBias.spd.toFixed(2) : "0.00"}
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-medium">
+                              {currentBias.spd != null ? (
+                                <>
+                                  <strong className="text-amber-800 font-bold">{(currentBias.spd * 100).toFixed(1)}%</strong> lower positive outcome rate
+                                </>
+                              ) : (
+                                "No difference between demographic groups"
+                              )}
+                            </span>
+                          </div>
+
+                          {/* 3. Disparate Impact (DI) */}
+                          <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col justify-between gap-2 hover:border-slate-300 transition-all">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
+                                <i className="bi bi-pie-chart-fill text-xs text-indigo-600" />
+                                Selection Ratio (DI)
+                              </span>
+                            </div>
+                            <span className="text-2xl sm:text-3xl font-black font-mono text-indigo-800 tracking-tight">
+                              {currentBias.di != null ? currentBias.di.toFixed(2) : "1.00"}
+                              <span className="text-sm sm:text-base font-bold font-mono text-indigo-500 ml-1.5">
+                                (or {(currentBias.di_penalty ?? (currentBias.di != null ? Math.abs(1 - currentBias.di) : 0)).toFixed(2)})
+                              </span>
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-medium">
+                              {currentBias.di != null ? (
+                                <>
+                                  Selected only <strong className="text-indigo-800 font-bold">{currentBias.di_percentage != null ? `${currentBias.di_percentage}%` : `${(currentBias.di * 100).toFixed(0)}%`}</strong> as often as top group
+                                </>
+                              ) : (
+                                "Equal selection rate to benchmark"
+                              )}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Plain-English Root Cause Explanation Box */}
+                        {displayedExplanation ? (
+                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5 space-y-2.5">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 text-slate-800">
+                                <span className="w-5 h-5 rounded-md bg-slate-200 flex items-center justify-center text-slate-700">
+                                  <i className="bi bi-chat-left-quote-fill text-xs" />
+                                </span>
+                                <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                                  Why is this group considered biased?
+                                </span>
+                              </div>
+                            </div>
+                            <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-medium pl-1">
+                              {displayedExplanation}
+                            </p>
+
+                            <div className="pt-2 border-t border-slate-200 flex flex-wrap items-center gap-2 text-[10px] text-slate-500 font-medium">
+                              <span className="text-slate-400 font-bold uppercase tracking-wider">Literature Citations:</span>
+                              <a
+                                href="https://doi.org/10.1145/3457607"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-white hover:bg-slate-100 border border-slate-200 hover:border-slate-300 px-2 py-0.5 rounded-md text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1 transition-colors"
+                                title="Mehrabi et al. (2021) - A Survey on Bias and Fairness in Machine Learning (ACM Computing Surveys)"
+                              >
+                                <span>SPD: Mehrabi et al. (2021)</span>
+                                <i className="bi bi-box-arrow-up-right text-[9px]" />
+                              </a>
+                              <a
+                                href="https://doi.org/10.1145/3494672"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-white hover:bg-slate-100 border border-slate-200 hover:border-slate-300 px-2 py-0.5 rounded-md text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1 transition-colors"
+                                title="Pessach & Shmueli (2022) - A Review on Fairness in Machine Learning (ACM Computing Surveys)"
+                              >
+                                <span>DI: Pessach & Shmueli (2022)</span>
+                                <i className="bi bi-box-arrow-up-right text-[9px]" />
+                              </a>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-white border border-slate-200 rounded-xl p-3.5 text-xs text-slate-500 italic">
+                            Disparity details for this subgroup have been verified against benchmark provenance logs.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Script Name & Transformation Cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
                         {/* Script Name Card */}
-                        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs hover:border-slate-300 transition-all flex flex-col justify-between">
+                        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs hover:border-slate-300 transition-all flex flex-col justify-between">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                              <i className="bi bi-file-earmark-code text-xs text-slate-400" />
                               Pipeline Script
                             </span>
                             {matchingProvenance?.step != null && (
@@ -614,9 +797,10 @@ export default function Results() {
                         </div>
 
                         {/* Transformation Card */}
-                        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs hover:border-slate-300 transition-all flex flex-col justify-between">
+                        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs hover:border-slate-300 transition-all flex flex-col justify-between">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                              <i className="bi bi-gear-wide-connected text-xs text-slate-400" />
                               Root-Cause Transformation
                             </span>
                           </div>
@@ -625,7 +809,7 @@ export default function Results() {
                               {currentBias?.transformation_name || "N/A"}
                             </span>
                             <span className="text-[10px] text-slate-400 mt-1 block font-medium">
-                              Function or step that causes disparity during the preprocessing
+                              Function or step that causes disparity during preprocessing
                             </span>
                           </div>
                         </div>
@@ -681,30 +865,15 @@ export default function Results() {
                             ))}
                           </div>
                         </div>
-
-                        {/* Bias Score & Tolerance (No bottom button) */}
-                        <div className="pt-1">
-                          <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-1">
-                            Discovered Bias Score
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-base font-black font-mono text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-1">
-                              {currentBias.fitness_score.toFixed(4)}
-                            </span>
-                            <span className="text-[11px] text-slate-500 font-medium">
-                              (Threshold: {threshold.toFixed(2)})
-                            </span>
-                          </div>
-                        </div>
                       </div>
                     </div>
                   ) : (
                     /* ================= SIDE B: RECOMMENDED ACTIONS (MITIGATION STRATEGY) ================= */
                     <div className="space-y-3.5">
                       {/* Mitigation Target Overview Banner */}
-                      <div className="bg-gradient-to-br from-emerald-50/90 to-teal-50/70 border border-emerald-200/90 rounded-2xl p-4 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
-                          <span className="text-[10px] font-bold uppercase text-emerald-700 tracking-wider block mb-0.5">
+                          <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block mb-0.5">
                             Targeted Mitigation For Operation
                           </span>
                           <div className="flex items-center gap-2 flex-wrap">
@@ -745,36 +914,46 @@ export default function Results() {
                       </div>
 
                       {/* References & Citations */}
-                      {matchingRecommendation?.references && matchingRecommendation.references.length > 0 && (
-                        <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-4">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                            Academic Citations & Algorithmic Literature:
+                      <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                            Academic Citations & Fairness Standards:
                           </span>
-                          <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1 custom-terminal-scroll">
-                            {matchingRecommendation.references.map((ref, rIdx) => (
-                              <div
-                                key={rIdx}
-                                className="bg-white border border-slate-200 rounded-xl p-2.5 text-[11px] flex items-center justify-between gap-3 shadow-2xs hover:border-slate-300 transition-all"
-                              >
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            2 Foundational References
+                          </span>
+                        </div>
+                        <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1 custom-terminal-scroll">
+                          {fairnessReferences.map((ref, rIdx) => (
+                            <div
+                              key={rIdx}
+                              className="bg-white border border-slate-200 rounded-xl p-2.5 text-[11px] flex items-center justify-between gap-3 shadow-2xs hover:border-slate-300 transition-all"
+                            >
+                              <div className="space-y-0.5">
+                                {ref.title && (
+                                  <span className="text-[10px] font-bold font-mono uppercase text-blue-600 block">
+                                    {ref.title}
+                                  </span>
+                                )}
                                 <span className="text-slate-700 font-medium line-clamp-2">
                                   [{rIdx + 1}] {ref.citation}
                                 </span>
-                                {ref.url && (
-                                  <a
-                                    href={ref.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-blue-600 hover:text-blue-800 font-bold shrink-0 flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-lg hover:bg-blue-100 transition-colors"
-                                  >
-                                    <span>Paper</span>
-                                    <i className="bi bi-box-arrow-up-right text-[10px]" />
-                                  </a>
-                                )}
                               </div>
-                            ))}
-                          </div>
+                              {ref.url && (
+                                <a
+                                  href={ref.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 font-bold shrink-0 flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-lg hover:bg-blue-100 transition-colors"
+                                >
+                                  <span>Paper</span>
+                                  <i className="bi bi-box-arrow-up-right text-[10px]" />
+                                </a>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -783,12 +962,12 @@ export default function Results() {
           </div>
         </div>
 
-        {/* Right Column: BIAS SCORES */}
-        <div className="lg:col-span-5 pt-1">
-          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md p-6 flex flex-col justify-between h-full">
+        {/* Bottom Section: BIAS SCORES */}
+        <div className="w-full">
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md p-6 sm:p-7 flex flex-col gap-6">
 
             {/* Card Header */}
-            <div className="border-b border-slate-100 pb-4 mb-4 flex items-center justify-between">
+            <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">
                   <i className="bi bi-graph-up-arrow" />
@@ -802,127 +981,140 @@ export default function Results() {
                   </span>
                 </div>
               </div>
-            </div>
 
-            {/* Chart */}
-            <div className="h-64 w-full mb-4">
-              {chartData.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs gap-2">
-                  <i className="bi bi-graph-up text-3xl text-slate-300" />
-                  <span>No search evaluation points logged.</span>
+              {chartData.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono font-bold bg-slate-50 text-slate-600 border border-slate-200 px-3 py-1 rounded-lg">
+                    Total Evaluations: <strong className="text-slate-900">{chartData.length}</strong>
+                  </span>
                 </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 15, right: 15, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                    <XAxis
-                      dataKey="step"
-                      tick={{ fontSize: 10, fill: "#64748B" }}
-                      tickLine={false}
-                      axisLine={{ stroke: "#E2E8F0" }}
-                      label={{
-                        value: "Unique Bias Score",
-                        position: "insideBottomRight",
-                        offset: -3,
-                        fontSize: 9,
-                        fill: "#94A3B8",
-                      }}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 10, fill: "#64748B" }}
-                      tickLine={false}
-                      axisLine={{ stroke: "#E2E8F0" }}
-                      domain={[
-                        (dataMin: number) => Math.max(0, parseFloat((dataMin - 0.05).toFixed(2))),
-                        (dataMax: number) => parseFloat((dataMax + 0.05).toFixed(2)),
-                      ]}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#0F172A",
-                        border: "1px solid #334155",
-                        borderRadius: "12px",
-                        color: "#F8FAFC",
-                        fontSize: "11px",
-                      }}
-                      labelFormatter={(val) => `Evaluation #${val}`}
-                    />
-                    <Legend
-                      verticalAlign="top"
-                      align="right"
-                      wrapperStyle={{ fontSize: "10px", paddingBottom: "4px" }}
-                      formatter={(value, entry) =>
-                        value === "Highest Bias Found" || value === "Unique Bias Score" ? (
-                          <ParamLabel
-                            label={value}
-                            tooltip={
-                              value === "Highest Bias Found"
-                                ? "The peak bias level discovered by the algorithm (higher means more unfair)."
-                                : "The unique bias score for each individual demographic subgroup evaluated during data preprocessing."
-                            }
-                            color={
-                              entry.color ??
-                              (value === "Highest Bias Found" ? "#10B981" : "#0284C7")
-                            }
-                          />
-                        ) : (
-                          value
-                        )
-                      }
-                    />
-                    <Line
-                      type="monotone"
-                      name="Unique Bias Score"
-                      dataKey="fitness_score"
-                      stroke="#0284C7"
-                      strokeWidth={2}
-                      dot={{ r: 3, strokeWidth: 1, fill: "#0284C7" }}
-                      activeDot={{ r: 4.5, strokeWidth: 1.5 }}
-                      isAnimationActive={false}
-                    />
-                    <Line
-                      type="monotone"
-                      name="Highest Bias Found"
-                      dataKey="best_fitness"
-                      stroke="#10B981"
-                      strokeWidth={2}
-                      strokeDasharray="4 4"
-                      dot={false}
-                      isAnimationActive={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
               )}
             </div>
 
-            {/* Root-Cause Summary */}
-            {scriptRollups.length > 0 && (
-              <div className="border-t border-slate-100 pt-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                  Pipeline Script Rollup:
-                </span>
-                <div className="space-y-1.5">
-                  {scriptRollups.map((s, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between text-xs p-2 rounded-xl bg-slate-50 border border-slate-200/60"
-                    >
-                      <span className="font-mono text-slate-800 font-medium truncate max-w-[180px]">
-                        {s.script_name}
-                      </span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] text-slate-500">
-                          {s.total_occurrences} occurrence{s.total_occurrences > 1 ? "s" : ""}
-                        </span>
-                        <span className="font-mono font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200/60 text-[11px]">
-                          Max: {s.max_score.toFixed(3)}
-                        </span>
-                      </div>
+            {/* Responsive Interior: Chart on Left (8 cols), Script Rollup on Right (4 cols) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Chart */}
+              <div className={cn(scriptRollups.length > 0 ? "lg:col-span-8" : "lg:col-span-12")}>
+                <div className="h-72 sm:h-80 w-full">
+                  {chartData.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs gap-2 border border-dashed border-slate-200 rounded-2xl">
+                      <i className="bi bi-graph-up text-3xl text-slate-300" />
+                      <span>No search evaluation points logged.</span>
                     </div>
-                  ))}
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} margin={{ top: 15, right: 15, left: -10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                        <XAxis
+                          dataKey="step"
+                          tick={{ fontSize: 10, fill: "#64748B" }}
+                          tickLine={false}
+                          axisLine={{ stroke: "#E2E8F0" }}
+                          label={{
+                            value: "Unique Bias Score",
+                            position: "insideBottomRight",
+                            offset: -3,
+                            fontSize: 9,
+                            fill: "#94A3B8",
+                          }}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 10, fill: "#64748B" }}
+                          tickLine={false}
+                          axisLine={{ stroke: "#E2E8F0" }}
+                          domain={[
+                            (dataMin: number) => Math.max(0, parseFloat((dataMin - 0.05).toFixed(2))),
+                            (dataMax: number) => parseFloat((dataMax + 0.05).toFixed(2)),
+                          ]}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "#0F172A",
+                            border: "1px solid #334155",
+                            borderRadius: "12px",
+                            color: "#F8FAFC",
+                            fontSize: "11px",
+                          }}
+                          labelFormatter={(val) => `Evaluation #${val}`}
+                        />
+                        <Legend
+                          verticalAlign="top"
+                          align="right"
+                          wrapperStyle={{ fontSize: "10px", paddingBottom: "4px" }}
+                          formatter={(value, entry) =>
+                            value === "Highest Bias Found" || value === "Unique Bias Score" ? (
+                              <ParamLabel
+                                label={value}
+                                tooltip={
+                                  value === "Highest Bias Found"
+                                    ? "The peak bias level discovered by the algorithm (higher means more unfair)."
+                                    : "The unique bias score for each individual demographic subgroup evaluated during data preprocessing."
+                                }
+                                color={
+                                  entry.color ??
+                                  (value === "Highest Bias Found" ? "#10B981" : "#0284C7")
+                                }
+                              />
+                            ) : (
+                              value
+                            )
+                          }
+                        />
+                        <Line
+                          type="monotone"
+                          name="Unique Bias Score"
+                          dataKey="fitness_score"
+                          stroke="#0284C7"
+                          strokeWidth={2}
+                          dot={{ r: 3, strokeWidth: 1, fill: "#0284C7" }}
+                          activeDot={{ r: 4.5, strokeWidth: 1.5 }}
+                          isAnimationActive={false}
+                        />
+                        <Line
+                          type="monotone"
+                          name="Highest Bias Found"
+                          dataKey="best_fitness"
+                          stroke="#10B981"
+                          strokeWidth={2}
+                          strokeDasharray="4 4"
+                          dot={false}
+                          isAnimationActive={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </div>
-            )}
+
+              {/* Pipeline Script Rollup on the Right */}
+              {scriptRollups.length > 0 && (
+                <div className="lg:col-span-4 lg:border-l lg:border-slate-100 lg:pl-6 pt-3 lg:pt-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2.5">
+                    Pipeline Script Rollup:
+                  </span>
+                  <div className="space-y-2">
+                    {scriptRollups.map((s, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-slate-50 border border-slate-200/60 hover:border-slate-300 transition-all"
+                      >
+                        <span className="font-mono text-slate-800 font-medium truncate max-w-[170px]" title={s.script_name}>
+                          {s.script_name}
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[10px] text-slate-500">
+                            {s.total_occurrences} {s.total_occurrences > 1 ? "hits" : "hit"}
+                          </span>
+                          <span className="font-mono font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200/60 text-[11px]">
+                            Max: {s.max_score.toFixed(3)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

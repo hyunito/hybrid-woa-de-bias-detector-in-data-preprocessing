@@ -85,8 +85,8 @@
     ],
     "references": [
       {
-        "citation": "Feldman, M., Friedler, S.A., Moeller, J., Scheidegger, C., & Venkatasubramanian, S. (2015). Certifying and Removing Disparate Impact. ACM SIGKDD.",
-        "url": "https://arxiv.org/abs/1412.3756"
+        "citation": "Pessach, D., & Shmueli, E. (2022). A Review on Fairness in Machine Learning. ACM Computing Surveys, 55(3), 1-44.",
+        "url": "https://doi.org/10.1145/3494672"
       }
     ]
   },
@@ -97,12 +97,12 @@
     ],
     "references": [
       {
-        "citation": "Kamiran, F. & Calders, T. (2012). Data preprocessing techniques for classification without discrimination. Knowledge and Information Systems, 33(1), 1-33.",
-        "url": "https://doi.org/10.1007/s10115-011-0463-8"
+        "citation": "Mehrabi, N., Morstatter, F., Saxena, N., Lerman, K., & Galstyan, A. (2021). A Survey on Bias and Fairness in Machine Learning. ACM Computing Surveys, 54(6), 1-35.",
+        "url": "https://doi.org/10.1145/3457607"
       },
       {
-        "citation": "Zemel, R., Wu, Y., Swersky, K., Pitassi, T., & Dwork, C. (2013). Learning Fair Representations. ICML.",
-        "url": "https://proceedings.mlr.press/v28/zemel13.html"
+        "citation": "Caton, S., & Haas, C. (2024). Fairness in Machine Learning: A Survey. ACM Computing Surveys, 56(7), 1-38.",
+        "url": "https://doi.org/10.1145/3616865"
       }
     ]
   }

@@ -1,3 +1,4 @@
+
 import os
 import sys
 import json
@@ -10,11 +11,42 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from config import PIPELINE_DIR, BACKEND_DIR
 from engine.audit import get_fitness_score
 from engine.hybrid_woa import WOAAuditor
+import fitness
 from routers.result import save_audit_result
 from routers.settings import get_algorithm_settings
 
 router = APIRouter(tags=["Audit"])
 
+FAIRNESS_REFERENCES = [
+    {
+        "title": "Statistical Parity Difference (SPD)",
+        "citation": "Mehrabi, N., Morstatter, F., Saxena, N., Lerman, K., & Galstyan, A. (2021). A Survey on Bias and Fairness in Machine Learning. ACM Computing Surveys, 54(6), pp. 1–35.",
+        "url": "https://doi.org/10.1145/3457607"
+    },
+    {
+        "title": "Disparate Impact (DI) — 80% Rule",
+        "citation": "Pessach, D., & Shmueli, E. (2022). A Review on Fairness in Machine Learning. ACM Computing Surveys, 55(3), pp. 1–44.",
+        "url": "https://doi.org/10.1145/3494672"
+    }
+]
+
+def format_demographic_label(raw_group: str) -> str:
+    """Formats demographic group string like 'age:20|sex:F' into 'age: 20, sex: F'."""
+    if not raw_group or raw_group == "None":
+        return "the affected subgroup"
+    if "|" in raw_group:
+        parts = []
+        for pair in raw_group.split("|"):
+            if ":" in pair:
+                k, v = pair.split(":", 1)
+                parts.append(f"{k.strip()}: {v.strip()}")
+            else:
+                parts.append(pair.strip())
+        return ", ".join(parts)
+    elif ":" in raw_group:
+        k, v = raw_group.split(":", 1)
+        return f"{k.strip()}: {v.strip()}"
+    return raw_group
 
 class AuditSession:
     def __init__(self, audit_id: str):
@@ -424,13 +456,38 @@ async def run_full_audit(session: AuditSession):
         for rank_num, bias in enumerate(ranked_biases, 1):
             bias["rank"] = rank_num
             if bias.get("fitness_score", 0.0) > threshold:
+                
+                details = fitness.get_fitness_detail(
+                    bias["script_name"],
+                    bias["transformation_name"],
+                    bias["demographic_group"]
+                )
+                spd = round(float(details["spd"]), 4)
+                di = round(float(details["di"]), 4)
+                di_penalty = round(abs(1.0 - di), 4)
+                di_pct = round(di * 100, 1)
+
+                bias["spd"] = spd
+                bias["di"] = di
+                bias["di_penalty"] = di_penalty
+                bias["di_percentage"] = di_pct
+
+                group_label = format_demographic_label(bias.get("demographic_group", ""))
+                bias["explanation"] = (
+                    f"During '{bias['transformation_name']}', this group ({group_label}) had a {spd * 100:.1f}% lower positive outcome rate "
+                    f"compared to the other group (an absolute gap of {spd:.2f}). They were selected only {di_pct}% "
+                    f"as often as the top group (ratio of {di:.2f}, contributing a {di_penalty:.2f} disparity penalty). "
+                    f"Combining the {spd:.2f} gap and the {di_penalty:.2f} penalty yields the total bias score of {bias['fitness_score']:.4f}."
+                )
                 filtered_biases.append(bias)
 
         raw_results = {
             "ranked_biases": filtered_biases,
             "provenance_records": prov_records,
-            "chart_points": chart_points_history
+            "chart_points": chart_points_history,
+            "references": FAIRNESS_REFERENCES
         }
+
 
         session.end_time = time.time()
         elapsed_s = int(session.end_time - session.start_time)
