@@ -28,7 +28,7 @@ class ProvenanceMetadataTracker:
         self.connection = None
         self.cursor = None
         
-        backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..",".."))
         env_path = os.path.join(backend_dir, ".env")
         load_dotenv(env_path)
     

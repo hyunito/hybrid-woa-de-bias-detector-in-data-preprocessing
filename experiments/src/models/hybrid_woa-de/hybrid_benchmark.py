@@ -12,9 +12,11 @@ process = psutil.Process(os.getpid())
 results = []
 for run in range(runs):
     mem_before = process.memory_info().rss
+    
     start_time = time.perf_counter()
 
     woa_auditor = WOAAuditor()
+
     result = woa_auditor.run_woa()
 
     end_time = time.perf_counter()

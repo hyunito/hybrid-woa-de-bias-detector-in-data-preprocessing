@@ -13,10 +13,8 @@ class WOAAuditor:
     to discover potential high-disparity bias hotspots across preprocessing pipelines.
     Optimized for minimal memory overhead and zero telemetry churn during benchmarks.
     """
-    DEFAULT_NUM_WHALES = 30
-    DEFAULT_MAX_ITER = 30
 
-    def __init__(self, metadata_logs=None, num_whales=DEFAULT_NUM_WHALES, max_iter=DEFAULT_MAX_ITER, de_params=None):
+    def __init__(self, metadata_logs=None, num_whales=30, max_iter=30, de_params=None):
         self.num_whales = num_whales
         self.max_iter = max_iter
         self.metadata_logs = metadata_logs

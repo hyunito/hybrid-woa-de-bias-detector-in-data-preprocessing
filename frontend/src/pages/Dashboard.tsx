@@ -404,7 +404,11 @@ export default function Dashboard() {
               )}
 
               <p className="text-[11px] text-slate-600 font-medium leading-relaxed border-t border-slate-200 mt-5 pt-3">
-                <span className="font-bold text-slate-800">Note:</span> Drag scripts to set execution order. Please ensure scripts are connected sequentially so the pipeline can execute from the first script. For the auditor to track provenance, you must put the{" "}
+                <span className="font-bold text-slate-800">Note:</span> Drag scripts to set execution order. Please ensure scripts are connected sequentially so the pipeline can execute from the first script. For the auditor to track provenance, you must put the library
+
+                <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[10px] text-slate-800 border border-slate-300">
+                  import tracker
+                </code>{" "} and 
                 <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[10px] text-slate-800 border border-slate-300">
                   @tracker.track("[Function's Task]")
                 </code>{" "}

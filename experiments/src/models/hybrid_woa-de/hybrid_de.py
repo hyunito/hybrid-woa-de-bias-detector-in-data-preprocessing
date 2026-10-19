@@ -10,12 +10,8 @@ class DEAuditor:
     Acts as the secondary local exploitation / refinement stage of the hybrid metaheuristic.
     Optimized for minimal memory overhead and zero telemetry churn during benchmarks.
     """
-    DEFAULT_POP_SIZE = 30
-    DEFAULT_F = 0.5
-    DEFAULT_CR = 0.9
-    DEFAULT_MAX_STAGNATION = 25
 
-    def __init__(self, metadata_logs=None, pop_size=DEFAULT_POP_SIZE, F=DEFAULT_F, CR=DEFAULT_CR, tolerance=1e-6, max_stagnation=DEFAULT_MAX_STAGNATION):
+    def __init__(self, metadata_logs=None, pop_size=30, F=0.5, CR=0.9, tolerance=1e-6, max_stagnation=25):
         self.pop_size = pop_size
         self.F = F
         self.CR = CR
