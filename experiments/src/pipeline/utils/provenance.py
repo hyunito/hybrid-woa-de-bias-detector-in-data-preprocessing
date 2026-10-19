@@ -228,10 +228,7 @@ class ProvenanceMetadataTracker:
         Stores metadata as a JSON object internally.
         """
         self.metadata_records.append(record)
-        script_name = record.get("script_name", "")
         transform_name = record.get("transformation_name", "")
-        if script_name:
-            print(f"> [PROBA_STEP] {script_name}", flush=True)
         print(f"Generated Provenance Metadata for: {transform_name}", flush=True)
 
     def export_to_json(self, filepath=None):

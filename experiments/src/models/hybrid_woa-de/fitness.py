@@ -151,8 +151,6 @@ def calculate_3d_fitness(s_idx: float, t_idx: float, d_idx: float):
     :param d_idx: Demographic group index for the selected transformation.
     :return: Tuple (fitness_score, script_name, trans_name, demo_key)
     """
-    if not _scripts:
-        return 0.0, "None", "None", "None"
         
     script_name = _scripts[int(s_idx)]
     trans_list = _transformations.get(script_name, [])
