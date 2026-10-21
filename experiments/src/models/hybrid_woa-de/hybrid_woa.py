@@ -8,14 +8,14 @@ from hybrid_de import DEAuditor
 
 class WOAAuditor:
     """
-    Whale Optimization Algorithm (WOA) Auditor (Lightweight Benchmark Version).
+    Whale Optimization Algorithm (WOA) Auditor.
     Acts as the primary global exploration (scouting) stage of the hybrid metaheuristic.
     Navigates a 3D search space: [Script Index, Transformation Index, Demographic Group Index]
     to discover potential high-disparity bias hotspots across preprocessing pipelines.
     Optimized for minimal memory overhead and zero telemetry churn during benchmarks.
     """
 
-    def __init__(self, metadata_logs=None, num_whales=30, max_iter=30, de_params=None):
+    def __init__(self, metadata_logs=None, num_whales=40, max_iter=20, de_params=None):
         self.num_whales = num_whales
         self.max_iter = max_iter
         self.metadata_logs = metadata_logs
@@ -102,7 +102,6 @@ class WOAAuditor:
         num_whales = len(whales_pos)
         whales_per_script = max(1, num_whales // num_scripts)
 
-        # 1. Initialize BOTH script-level and transformation-level tracking
         self.script_bests = {}
         self.transformation_bests = {}
         for s_idx, s_name in enumerate(self.scripts):
