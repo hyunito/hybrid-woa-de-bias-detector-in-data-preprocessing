@@ -5,7 +5,7 @@ import fitness
 
 class WOAAuditor:
     
-    def __init__(self, metadata_logs=None, num_whales=10, max_iter=250):
+    def __init__(self, metadata_logs=None, num_whales=40, max_iter=39):
         """
         Initializes the WOA Auditor with a 3D search space.
         :param metadata_logs: Optional list of dictionaries representing the JSONB logs.

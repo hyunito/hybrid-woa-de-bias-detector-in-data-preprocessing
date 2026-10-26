@@ -1,4 +1,3 @@
-from dotenv import ipython
 import math
 import random
 import numpy as np

@@ -3,10 +3,9 @@ from numpy.random import rand
 from numpy.random import choice
 import random
 import fitness
-correct = 0
 class DEAuditor:
 
-    def __init__(self, metadata_logs=None, pop_size=30, F=0.5, CR=0.7, tolerance=1e-6, max_stagnation=25):
+    def __init__(self, metadata_logs=None, pop_size=30, F=0.5, CR=0.7, tolerance=1e-6, max_stagnation=55):
         """
         Initializes the DE Auditor with a 3D search space.
         :param metadata_logs: Optional list of dictionaries representing the JSONB logs.
@@ -87,12 +86,7 @@ class DEAuditor:
         """
         Calls calculate_3d_fitness using s_idx, t_idx, d_idx coordinates.
         """
-        global correct
-
         score, _, trans_name, _ = fitness.calculate_3d_fitness(pos[0], pos[1], pos[2])
-
-        if trans_name == "Num Outlier":
-            correct+=1
 
         return score
 
@@ -154,8 +148,6 @@ class DEAuditor:
             else:
                 stagnation_counter += 1
 
-        global correct
-        traceability = correct / (n-1)
         best_fitness, best_script, best_trans, best_demo = fitness.calculate_3d_fitness(
             self.best_position[0], self.best_position[1], self.best_position[2]
         )
@@ -179,8 +171,7 @@ class DEAuditor:
             "script_name": best_script,
             "transformation_name": best_trans,
             "demographic_group": best_demo,
-            "individuals": pop_info,
-            "traceability": traceability
+            "individuals": pop_info
         }
 
 if __name__ == "__main__":

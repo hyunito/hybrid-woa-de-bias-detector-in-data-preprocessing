@@ -4,6 +4,7 @@ import functools
 import json
 import inspect
 import os
+import math 
 import psycopg2
 from dotenv import load_dotenv
 
@@ -28,7 +29,7 @@ class ProvenanceMetadataTracker:
         self.connection = None
         self.cursor = None
         
-        backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..",".."))
         env_path = os.path.join(backend_dir, ".env")
         load_dotenv(env_path)
     
@@ -100,6 +101,28 @@ class ProvenanceMetadataTracker:
                         df_meta[col] = df_meta[col].replace(["nan", "NaN"], "Unknown")
 
         return df_meta
+    
+    def _calculate_wilson_interval(self, favorable, total_count, z=1.96):
+        """
+        Computes the 95% Wilson score confidence interval for a proportion.
+        :param favorable: Number of positive outcomes (successes).
+        :param total_count: Total sample size.
+        :param z: Critical value (1.96 corresponds to 95% confidence).
+        :return: (lower_bound, upper_bound) rounded to 4 decimals.
+        """
+        if total_count <= 0:
+            return 0.0, 0.0
+
+        p = favorable / total_count
+        z2 = z ** 2
+        denominator = 1 + (z2 / total_count)
+        centre = (p + (z2 / (2 * total_count))) / denominator
+        spread = (z / denominator) * math.sqrt((p * (1 - p) / total_count) + (z2 / (4 * (total_count ** 2))))
+
+        lower_bound = max(0.0, centre - spread)
+        upper_bound = min(1.0, centre + spread)
+
+        return round(lower_bound, 4), round(upper_bound, 4)
 
 
     def _generate_snapshot(self, df):
@@ -127,6 +150,7 @@ class ProvenanceMetadataTracker:
         intersectional_demographics = {}
         privileged_group = None
         highest_rate = -1
+        highest_ci_lower = -1.0
         for name, group in groups:
             
             if isinstance(name, tuple):
@@ -150,15 +174,21 @@ class ProvenanceMetadataTracker:
                 
             selection_rate_favorable_outcomes = favorable / total_count
             selection_rate_unfavorable_outcomes = unfavorable / total_count
+
+            ci_lower, ci_upper = self._calculate_wilson_interval(favorable, total_count)
             
             intersectional_demographics[group_key] = {
                 "total_count": total_count,
                 "favorable_outcomes": favorable,
                 "unfavorable_outcomes": unfavorable,
                 "selection_rate_favorable_outcomes": selection_rate_favorable_outcomes,
-                "selection_rate_unfavorable_outcomes": selection_rate_unfavorable_outcomes
+                "selection_rate_unfavorable_outcomes": selection_rate_unfavorable_outcomes,
+                "wilson_ci_lower": ci_lower,
+                "wilson_ci_upper": ci_upper
             }
-            if total_count >= 30 and selection_rate_favorable_outcomes > highest_rate:
+            
+            if total_count >= 30 and ci_lower > highest_ci_lower:
+                highest_ci_lower = ci_lower
                 highest_rate = selection_rate_favorable_outcomes
                 privileged_group = group_key
         return intersectional_demographics, privileged_group, highest_rate
@@ -228,10 +258,7 @@ class ProvenanceMetadataTracker:
         Stores metadata as a JSON object internally.
         """
         self.metadata_records.append(record)
-        script_name = record.get("script_name", "")
         transform_name = record.get("transformation_name", "")
-        if script_name:
-            print(f"> [PROBA_STEP] {script_name}", flush=True)
         print(f"Generated Provenance Metadata for: {transform_name}", flush=True)
 
     def export_to_json(self, filepath=None):
