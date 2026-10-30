@@ -11,8 +11,8 @@ class WOAAuditor:
     Navigates a 3D search space: [Script Index, Transformation Index, Demographic Group Index]
     to discover potential high-disparity bias hotspots across preprocessing pipelines.
     """
-    DEFAULT_NUM_WHALES = 30
-    DEFAULT_MAX_ITER = 30
+    DEFAULT_NUM_WHALES = 40
+    DEFAULT_MAX_ITER = 20
     def __init__(self, metadata_logs = None, num_whales = DEFAULT_NUM_WHALES, max_iter = DEFAULT_MAX_ITER, de_params = None):
         """
         Initializes the WOA search swarm.

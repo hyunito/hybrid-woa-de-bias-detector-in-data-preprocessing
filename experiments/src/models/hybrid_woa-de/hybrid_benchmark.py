@@ -5,8 +5,8 @@ import tracemalloc
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from hybrid_woa import WOAAuditor
 
-runs = 1
-
+runs = 30
+traceability = 0
 
 results = []
 for run in range(runs):
@@ -34,4 +34,9 @@ for run in range(runs):
         "execution_time": execution_time,
         "peak_ram_mb": peak_ram_mb
     })
+  
+    if result['max_fitness_score'] == 1.6577509532428722:
+        traceability = traceability + 1
     print(f"Transformation: {result['transformation_name']} | Score: {result['max_fitness_score']:.4f}\nTime: {execution_time:.4f}s | Peak RAM Usage: {peak_ram_mb:.6f}MB")
+
+print(f"Traceability Rate: {traceability} / 30")

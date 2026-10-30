@@ -12,8 +12,8 @@ class DEAuditor:
     coordinates and confirm the maximum-disparity bias hotspot.
     """
     DEFAULT_POP_SIZE = 30
-    DEFAULT_F = 0.5
-    DEFAULT_CR = 0.7
+    DEFAULT_F = 1.8
+    DEFAULT_CR = 0.75
     DEFAULT_MAX_STAGNATION = 25
 
     def __init__(self, metadata_logs = None, pop_size = DEFAULT_POP_SIZE, F = DEFAULT_F, CR = DEFAULT_CR, tolerance = 1e-6, max_stagnation = DEFAULT_MAX_STAGNATION):

@@ -11,7 +11,7 @@ class DEAuditor:
     Optimized for minimal memory overhead and zero telemetry churn during benchmarks.
     """
 
-    def __init__(self, metadata_logs=None, pop_size=30, F=0.5, CR=0.7, tolerance=1e-6, max_stagnation=52):
+    def __init__(self, metadata_logs=None, pop_size=30, F=1.8, CR=0.75, tolerance=1e-6, max_stagnation=25):
         self.pop_size = pop_size
         self.F = F
         self.CR = CR

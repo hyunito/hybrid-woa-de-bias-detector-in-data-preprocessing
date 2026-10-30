@@ -14,7 +14,7 @@ class WOAAuditor:
     Optimized for minimal memory overhead and zero telemetry churn during benchmarks.
     """
 
-    def __init__(self, metadata_logs=None, num_whales=40, max_iter=20, de_params=None):
+    def __init__(self, metadata_logs=None, num_whales=40, max_iter=10, de_params=None):
         self.num_whales = num_whales
         self.max_iter = max_iter
         self.metadata_logs = metadata_logs

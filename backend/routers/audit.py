@@ -380,12 +380,12 @@ async def run_full_audit(session: AuditSession):
         })
 
         algo_cfg = get_algorithm_settings()
-        num_whales = int(algo_cfg.get("searchingAgents", 30))
-        max_iter = int(algo_cfg.get("maxIterations", 30))
+        num_whales = int(algo_cfg.get("searchingAgents", 40))
+        max_iter = int(algo_cfg.get("maxIterations", 20))
         de_params = {
             "pop_size": int(algo_cfg.get("populationSize", 30)),
-            "F": float(algo_cfg.get("scaleFactor", 0.5)),
-            "CR": float(algo_cfg.get("crossoverRate", 0.7)),
+            "F": float(algo_cfg.get("scaleFactor", 1.8)),
+            "CR": float(algo_cfg.get("crossoverRate", 0.75)),
             "max_stagnation": int(algo_cfg.get("maxStagnationLimit", 25))
         }
         threshold = float(algo_cfg.get("biasThreshold", 0.2))

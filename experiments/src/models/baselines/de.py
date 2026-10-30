@@ -5,7 +5,7 @@ import random
 import fitness
 class DEAuditor:
 
-    def __init__(self, metadata_logs=None, pop_size=30, F=0.5, CR=0.7, tolerance=1e-6, max_stagnation=55):
+    def __init__(self, metadata_logs=None, pop_size=30, F=0.5, CR=0.9, tolerance=1e-6, max_stagnation=41):
         """
         Initializes the DE Auditor with a 3D search space.
         :param metadata_logs: Optional list of dictionaries representing the JSONB logs.
