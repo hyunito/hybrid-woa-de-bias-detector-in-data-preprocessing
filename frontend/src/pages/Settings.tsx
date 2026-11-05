@@ -251,9 +251,9 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex flex-col h-full justify-between gap-4 max-w-7xl mx-auto w-full">
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex-1 flex flex-col justify-between overflow-hidden">
-        <div className="py-3 px-8 border-b border-slate-200 flex items-center justify-between">
+    <div className="flex flex-col h-full min-h-0 justify-between gap-4 max-w-7xl mx-auto w-full">
+      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="py-3 px-8 border-b border-slate-200 flex shrink-0 items-center justify-between">
           <h1 className="text-2xl font-bold tracking-tight text-[#0F1B2B]">
             SETTINGS
           </h1>
@@ -269,7 +269,7 @@ export default function Settings() {
           </button>
         </div>
 
-        <div className="p-4 flex-1 flex flex-col justify-between gap-2">
+        <div className="p-4 flex-1 min-h-0 overflow-y-auto flex flex-col justify-start gap-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
 
             <div className="border border-slate-300/90 rounded-2xl p-6 bg-white flex flex-col justify-between shadow-xs">
