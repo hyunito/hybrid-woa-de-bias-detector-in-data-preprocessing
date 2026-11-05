@@ -11,10 +11,9 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from config import PIPELINE_DIR, BACKEND_DIR
 from engine.audit import get_fitness_score
 from engine.hybrid_woa import WOAAuditor
-try:
-    from engine import fitness
-except ImportError:
-    import fitness
+
+from engine import fitness
+
 from routers.result import save_audit_result
 from routers.settings import get_algorithm_settings
 

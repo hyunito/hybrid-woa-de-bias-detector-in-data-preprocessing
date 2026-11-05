@@ -52,8 +52,8 @@ DATA STRUCTURES, ALGORITHMS, AND CONTROLS:
 import math
 import random
 import numpy as np
-import fitness
-from hybrid_de import DEAuditor
+from engine import fitness
+from engine.hybrid_de import DEAuditor
 
 # Module-Level Constants
 DEFAULT_NUM_WHALES: int = 30

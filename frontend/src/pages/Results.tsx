@@ -562,7 +562,7 @@ export default function Results() {
                         Peak Disparity Found
                       </span>
                       <span className="text-sm font-bold font-mono text-emerald-600">
-                        {peakDiscoveredScore > 0 ? peakDiscoveredScore.toFixed(4) : "0.0000"}
+                        {rankedBiases.length > 0 ? peakDiscoveredScore.toFixed(4) : "0.0000"}
                       </span>
                     </div>
                   </div>
@@ -684,16 +684,7 @@ export default function Results() {
                                 <i className="bi bi-distribute-vertical text-xs text-amber-600" />
                                 Absolute Gap (SPD)
                               </span>
-                              <span className={cn(
-                                "text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border",
-                                (currentBias.fails_spd ?? (currentBias.spd != null && currentBias.spd > threshold))
-                                  ? "text-amber-800 bg-amber-50 border-amber-300"
-                                  : "text-emerald-700 bg-emerald-50 border-emerald-300"
-                              )}>
-                                {(currentBias.fails_spd ?? (currentBias.spd != null && currentBias.spd > threshold))
-                                  ? `Breached (> ${threshold.toFixed(2)})`
-                                  : `Safe (<= ${threshold.toFixed(2)})`}
-                              </span>
+                            
                             </div>
                             <span className="text-2xl sm:text-3xl font-black font-mono text-amber-800 tracking-tight">
                               {currentBias.spd != null ? currentBias.spd.toFixed(2) : "0.00"}
@@ -715,16 +706,6 @@ export default function Results() {
                               <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
                                 <i className="bi bi-pie-chart-fill text-xs text-indigo-600" />
                                 Selection Ratio (DI)
-                              </span>
-                              <span className={cn(
-                                "text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border",
-                                (currentBias.fails_di ?? (currentBias.di != null && currentBias.di < 0.80))
-                                  ? "text-rose-700 bg-rose-50 border-rose-300"
-                                  : "text-emerald-700 bg-emerald-50 border-emerald-300"
-                              )}>
-                                {(currentBias.fails_di ?? (currentBias.di != null && currentBias.di < 0.80))
-                                  ? "Breached (< 0.80)"
-                                  : "Bypassed / Safe (>= 0.80)"}
                               </span>
                             </div>
                             <span className="text-2xl sm:text-3xl font-black font-mono text-indigo-800 tracking-tight">

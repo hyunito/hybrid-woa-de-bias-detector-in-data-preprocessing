@@ -1,7 +1,7 @@
 import random
 import numpy as np
 from numpy.random import rand, choice
-import fitness
+from engine import fitness
 
 
 class DEAuditor:

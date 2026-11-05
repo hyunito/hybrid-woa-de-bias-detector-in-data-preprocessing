@@ -1,8 +1,8 @@
 import math
 import random
 import numpy as np
-import fitness
-from hybrid_de import DEAuditor
+from engine import fitness
+from engine.hybrid_de import DEAuditor
 
 class WOAAuditor:
     """

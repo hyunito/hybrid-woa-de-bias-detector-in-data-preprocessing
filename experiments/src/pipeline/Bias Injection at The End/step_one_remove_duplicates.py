@@ -3,12 +3,14 @@ from step_two_handle_missing_data import process_missing_data
 from tracker_setup import tracker
 
 
+
 @tracker.track("Remove Duplicates")
 def remove_duplicates(df):
     """
     Remove exact duplicated rows from the dataset.
     """
     df = df.drop_duplicates().copy()
+    
     return df
 
 @tracker.track("Fix Format")
@@ -66,9 +68,9 @@ def process_format_and_duplicates(df):
 
 if __name__ == '__main__':
     print("Starting Data Pipeline...")
-    raw_data_path = 'experiments/data/dirty_ACSIncome_2018_10K.csv'
+    raw_data_path = 'experiments/data/dirty_ACSIncome_2018_100K.csv'
     print(f"Loading raw data from {raw_data_path}...")
 
     df = pd.read_csv(raw_data_path)
     df = process_format_and_duplicates(df)
-    df.to_csv("experiments/data/cleaned_ACSIncome_2018_10K.csv", index=False)
+    df.to_csv("experiments/data/cleaned_ACSIncome_2018_100K.csv", index=False)

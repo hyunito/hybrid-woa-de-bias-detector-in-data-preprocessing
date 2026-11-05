@@ -1,4 +1,3 @@
-
 import os
 import sys
 import atexit
@@ -10,18 +9,19 @@ if _utils_dir not in sys.path:
 
 from utils.provenance import ProvenanceMetadataTracker
 
-
+# The active tracker configured for your dataset
 tracker = ProvenanceMetadataTracker(
-    protected_attributes=[
+    protected_attributes=[ 
         {'name': 'age', 'type': 'continuous'}, 
         {'name': 'race', 'type': 'categorical'}, 
-        {'name': 'sex', 'type': 'categorical'}],
-    target_variable={'name': 'income', 'positive': '>50K', 'negative': '<=50K'}
+        {'name': 'sex', 'type': 'categorical'}
+    ],
+    target_variable={'name': 'income', 'positive': 'TRUE', 'negative': 'FALSE'}
 )
 
+# Auto-saves the collected provenance to DB/JSON when pipeline exits
 def _auto_export_on_exit():
     if hasattr(tracker, 'metadata_records') and tracker.metadata_records:
-        # Determine root directory for provenance_metadata.json
         root_dir = os.path.abspath(os.path.join(_current_dir, "..", ".."))
         json_path = os.path.join(root_dir, "provenance_metadata.json")
         try:
@@ -35,12 +35,3 @@ def _auto_export_on_exit():
             print(f"[Tracker] Error exporting to JSON: {e}")
 
 atexit.register(_auto_export_on_exit)
-
-tracker = ProvenanceMetadataTracker(
-    protected_attributes=[ 
-        {'name': 'age', 'type': 'continuous'}, 
-        {'name': 'race', 'type': 'categorical'}, 
-        {'name': 'sex', 'type': 'categorical'}
-    ],
-    target_variable={'name': 'income', 'positive': 'TRUE', 'negative': 'FALSE'}
-)

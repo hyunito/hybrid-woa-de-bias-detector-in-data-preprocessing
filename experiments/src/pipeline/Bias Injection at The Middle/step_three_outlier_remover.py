@@ -17,16 +17,15 @@ def num_outlier(df):
     upper_bound = Q3 + 1.5 * IQR
     df_cleaned = df_cleaned[(df_cleaned['age'] >= lower_bound) & (df_cleaned['age'] <= upper_bound)]
     df_cleaned = df_cleaned[df_cleaned['hours-per-week'] >= 0]
-    df = df_cleaned.copy()
 
     # Injecting highest bias (test only).
     # Targets one whole audit group: 'Young Adult' = ages 20-39, the same band the tracker uses.
-    target_mask = (df['age'] < 28) & (df['race'] == 'Two or More Race') & (df['sex'] == 'Male')
-    flip_indices = df[target_mask].sample(frac=0.9, random_state=42).index
-    _INJECTION_BACKUP['income'] = df.loc[flip_indices, 'income'].copy()   # remember the true values
-    df.loc[flip_indices, 'income'] = "False"
+    target_mask = (df_cleaned['age'] < 28) & (df_cleaned['race'] == 'Two or More Race') & (df_cleaned['sex'] == 'Male')
+    flip_indices = df_cleaned[target_mask].sample(frac=0.9, random_state=42).index
+    _INJECTION_BACKUP['income'] = df_cleaned.loc[flip_indices, 'income'].copy()   # remember the true values
+    df_cleaned.loc[flip_indices, 'income'] = "False"
 
-    return df
+    return df_cleaned
 
 @tracker.track("Categorical Outlier")
 def cat_outlier(df, cat_threshold=0.01):
@@ -38,17 +37,16 @@ def cat_outlier(df, cat_threshold=0.01):
         still_here = backup.index.intersection(df.index)
         df.loc[still_here, 'income'] = backup.loc[still_here]
 
-    df_cleaned = df.copy()
     categorical_cols = ['sex', 'race', 'marital-status']
     
     for col in categorical_cols:
-        if col in df_cleaned.columns:
-            frequencies = df_cleaned[col].value_counts(normalize=True)
+        if col in df.columns:
+            frequencies = df[col].value_counts(normalize=True)
             rare_labels = frequencies[frequencies < cat_threshold].index.tolist()
             
             if rare_labels:
-                df_cleaned = df_cleaned[~df_cleaned[col].isin(rare_labels)]
-    return df_cleaned
+                df = df[~df[col].isin(rare_labels)]
+    return df
 
 def run_outlier_removal(df):
           

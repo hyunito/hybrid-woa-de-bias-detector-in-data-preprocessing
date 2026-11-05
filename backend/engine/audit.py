@@ -1,13 +1,13 @@
 import os
 import sys
 
-_engine_dir = os.path.dirname(os.path.abspath(__file__))
-if _engine_dir not in sys.path:
-    sys.path.insert(0, _engine_dir)
+_backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
 
-import fitness
-from hybrid_woa import WOAAuditor
-from feedback import generate_mitigation_report
+from engine import fitness
+from engine.hybrid_woa import WOAAuditor
+from engine.feedback import generate_mitigation_report
 
 
 def get_fitness_score(bias_item):

@@ -4,13 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-_backend_dir = os.path.dirname(os.path.abspath(__file__))
-if _backend_dir not in sys.path:
-    sys.path.insert(0, _backend_dir)
-
-_engine_dir = os.path.join(_backend_dir, "engine")
-if _engine_dir not in sys.path:
-    sys.path.insert(0, _engine_dir)
+from config import BACKEND_DIR
 
 from routers.dashboard import router as dashboard_router
 from routers.configuration import router as configuration_router
@@ -45,7 +39,7 @@ if __name__ == "__main__":
         port=8000,
         reload=True,
         reload_dirs=[
-            os.path.join(_backend_dir, "routers"),
-            os.path.join(_backend_dir, "engine"),
+            os.path.join(BACKEND_DIR, "routers"),
+            os.path.join(BACKEND_DIR, "engine"),
         ],
     )

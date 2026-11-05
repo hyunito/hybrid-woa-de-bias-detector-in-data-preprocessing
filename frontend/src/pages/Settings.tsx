@@ -476,8 +476,8 @@ export default function Settings() {
           <div className="border border-slate-300/90 rounded-2xl p-4 px-6 bg-white shadow-xs space-y-3">
             <div className="flex items-center justify-between text-xs">
               <ParamLabel
-                label="STATISTICAL PARITY (SPD) THRESHOLD"
-                tooltip="The maximum acceptable absolute gap in positive outcome rates between groups (0.00 to 1.00 per Thesis Page 75). Subgroups with an absolute gap exceeding this value are flagged as biased."
+                label="STATISTICAL PARITY DIFFERENCE THRESHOLD"
+                tooltip="The maximum acceptable absolute gap in positive outcome rates between groups. Subgroups with an absolute gap exceeding this value are flagged as biased."
               />
               <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
                 {settings.spdThreshold.toFixed(2)}
@@ -506,7 +506,7 @@ export default function Settings() {
             {/* Permanent Locked Four-Fifths DI Standard Banner */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs pt-3 border-t border-slate-100">
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-[#0F1B2B]">DISPARATE IMPACT (DI) STANDARD</span>
+                <span className="font-bold text-[#0F1B2B]">DISPARATE IMPACT THRESHOLD</span>
                 <span className="text-[10px] uppercase font-semibold tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                   Legal Four-Fifths Rule
                 </span>
