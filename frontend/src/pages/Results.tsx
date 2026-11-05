@@ -26,6 +26,8 @@ interface RankedBias {
   di_penalty?: number;
   di_percentage?: number;
   explanation?: string;
+  fails_di?: boolean;
+  fails_spd?: boolean;
 }
 
 interface ReferenceItem {
@@ -549,7 +551,7 @@ export default function Results() {
                   <div className="grid grid-cols-2 gap-3 w-full max-w-sm pt-2">
                     <div className="bg-white border border-emerald-200/60 rounded-xl p-3 shadow-2xs">
                       <span className="text-[10px] font-bold uppercase text-slate-400 block mb-0.5">
-                        Configured Threshold
+                        Configured SPD Threshold
                       </span>
                       <span className="text-sm font-bold font-mono text-slate-800">
                         {threshold.toFixed(2)}
@@ -661,10 +663,10 @@ export default function Results() {
                             <div className="flex items-center justify-between">
                               <span className="text-[11px] font-bold uppercase tracking-wider text-rose-600 flex items-center gap-1.5">
                                 <i className="bi bi-exclamation-triangle-fill text-xs text-rose-500" />
-                                Bias Score (Total Disparity)
+                                Compound Bias Score
                               </span>
-                              <span className="text-[10px] font-mono font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">
-                                &gt; {threshold.toFixed(2)}
+                              <span className="text-[10px] font-mono font-bold text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
+                                |SPD| + |1-DI|
                               </span>
                             </div>
                             <span className="text-2xl sm:text-3xl font-black font-mono text-rose-600 tracking-tight">
@@ -681,6 +683,16 @@ export default function Results() {
                               <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
                                 <i className="bi bi-distribute-vertical text-xs text-amber-600" />
                                 Absolute Gap (SPD)
+                              </span>
+                              <span className={cn(
+                                "text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border",
+                                (currentBias.fails_spd ?? (currentBias.spd != null && currentBias.spd > threshold))
+                                  ? "text-amber-800 bg-amber-50 border-amber-300"
+                                  : "text-emerald-700 bg-emerald-50 border-emerald-300"
+                              )}>
+                                {(currentBias.fails_spd ?? (currentBias.spd != null && currentBias.spd > threshold))
+                                  ? `Breached (> ${threshold.toFixed(2)})`
+                                  : `Safe (<= ${threshold.toFixed(2)})`}
                               </span>
                             </div>
                             <span className="text-2xl sm:text-3xl font-black font-mono text-amber-800 tracking-tight">
@@ -703,6 +715,16 @@ export default function Results() {
                               <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
                                 <i className="bi bi-pie-chart-fill text-xs text-indigo-600" />
                                 Selection Ratio (DI)
+                              </span>
+                              <span className={cn(
+                                "text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border",
+                                (currentBias.fails_di ?? (currentBias.di != null && currentBias.di < 0.80))
+                                  ? "text-rose-700 bg-rose-50 border-rose-300"
+                                  : "text-emerald-700 bg-emerald-50 border-emerald-300"
+                              )}>
+                                {(currentBias.fails_di ?? (currentBias.di != null && currentBias.di < 0.80))
+                                  ? "Breached (< 0.80)"
+                                  : "Bypassed / Safe (>= 0.80)"}
                               </span>
                             </div>
                             <span className="text-2xl sm:text-3xl font-black font-mono text-indigo-800 tracking-tight">

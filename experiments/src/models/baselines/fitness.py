@@ -54,7 +54,10 @@ def load_provenance_data(rows):
         
     _logs_cache = True
 
-def get_space_dimensions():
+def get_space_dimensions(metadata_logs=None):
+    if metadata_logs is not None:
+        load_provenance_data(metadata_logs)
+        return _scripts, _transformations, _demographics
     rows = []
     path = "provenance_metadata.json"
     load_dotenv()

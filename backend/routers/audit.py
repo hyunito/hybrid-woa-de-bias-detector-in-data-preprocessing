@@ -11,7 +11,10 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from config import PIPELINE_DIR, BACKEND_DIR
 from engine.audit import get_fitness_score
 from engine.hybrid_woa import WOAAuditor
-import fitness
+try:
+    from engine import fitness
+except ImportError:
+    import fitness
 from routers.result import save_audit_result
 from routers.settings import get_algorithm_settings
 
@@ -30,23 +33,26 @@ FAIRNESS_REFERENCES = [
     }
 ]
 
-def format_demographic_label(raw_group: str) -> str:
+def format_demographic_label(raw_group) -> str:
     """Formats demographic group string like 'age:20|sex:F' into 'age: 20, sex: F'."""
     if not raw_group or raw_group == "None":
         return "the affected subgroup"
-    if "|" in raw_group:
+    if isinstance(raw_group, dict):
+        return ", ".join(f"{k}: {v}" for k, v in raw_group.items())
+    raw_str = str(raw_group)
+    if "|" in raw_str:
         parts = []
-        for pair in raw_group.split("|"):
+        for pair in raw_str.split("|"):
             if ":" in pair:
                 k, v = pair.split(":", 1)
                 parts.append(f"{k.strip()}: {v.strip()}")
             else:
                 parts.append(pair.strip())
         return ", ".join(parts)
-    elif ":" in raw_group:
-        k, v = raw_group.split(":", 1)
+    elif ":" in raw_str:
+        k, v = raw_str.split(":", 1)
         return f"{k.strip()}: {v.strip()}"
-    return raw_group
+    return raw_str
 
 class AuditSession:
     def __init__(self, audit_id: str):
@@ -388,7 +394,8 @@ async def run_full_audit(session: AuditSession):
             "CR": float(algo_cfg.get("crossoverRate", 0.75)),
             "max_stagnation": int(algo_cfg.get("maxStagnationLimit", 25))
         }
-        threshold = float(algo_cfg.get("biasThreshold", 0.2))
+        spd_threshold = float(algo_cfg.get("spdThreshold", algo_cfg.get("biasThreshold", 0.0)))
+        threshold = spd_threshold
         auditor = WOAAuditor(
             metadata_logs=prov_records,
             num_whales=num_whales,
@@ -452,40 +459,72 @@ async def run_full_audit(session: AuditSession):
         ranked_biases = list(unique_records.values())
         ranked_biases.sort(key=get_fitness_score, reverse=True)
 
+        DI_CUTOFF = 0.80  # Locked Four-Fifths 80% rule
         filtered_biases = []
-        for rank_num, bias in enumerate(ranked_biases, 1):
-            bias["rank"] = rank_num
-            if bias.get("fitness_score", 0.0) > threshold:
-                
-                details = fitness.get_fitness_detail(
-                    bias["script_name"],
-                    bias["transformation_name"],
-                    bias["demographic_group"]
-                )
-                spd = round(float(details["spd"]), 4)
-                di = round(float(details["di"]), 4)
-                di_penalty = round(abs(1.0 - di), 4)
-                di_pct = round(di * 100, 1)
+        for bias in ranked_biases:
+            demo_grp = bias.get("demographic_group")
+            if not demo_grp or demo_grp == "None":
+                continue
 
-                bias["spd"] = spd
-                bias["di"] = di
-                bias["di_penalty"] = di_penalty
-                bias["di_percentage"] = di_pct
+            details = fitness.get_fitness_detail(
+                bias["script_name"],
+                bias["transformation_name"],
+                demo_grp
+            )
+            spd = round(float(details["spd"]), 4)
+            di = round(float(details["di"]), 4)
+            di_penalty = round(abs(1.0 - di), 4)
+            di_pct = round(di * 100, 1)
 
-                group_label = format_demographic_label(bias.get("demographic_group", ""))
-                bias["explanation"] = (
+            bias["spd"] = spd
+            bias["di"] = di
+            bias["di_penalty"] = di_penalty
+            bias["di_percentage"] = di_pct
+
+            fails_di = (di < DI_CUTOFF)
+            fails_spd = (spd > spd_threshold)
+
+            if fails_di or fails_spd:
+                bias["fails_di"] = fails_di
+                bias["fails_spd"] = fails_spd
+
+                group_label = format_demographic_label(demo_grp)
+                intro = (
                     f"During '{bias['transformation_name']}', this group ({group_label}) had a {spd * 100:.1f}% lower positive outcome rate "
-                    f"compared to the other group (an absolute gap of {spd:.2f}). They were selected only {di_pct}% "
-                    f"as often as the top group (ratio of {di:.2f}, contributing a {di_penalty:.2f} disparity penalty). "
-                    f"Combining the {spd:.2f} gap and the {di_penalty:.2f} penalty yields the total bias score of {bias['fitness_score']:.4f}."
+                    f"compared to the privileged group (an absolute gap of {spd:.2f}). They were selected only {di_pct}% "
+                    f"as often as the top group (ratio of {di:.2f}). "
                 )
+
+                if not fails_di and fails_spd:
+                    verdict = (
+                        f"Notice: This subgroup bypassed the Disparate Impact (DI) threshold by achieving a {di_pct}% "
+                        f"selection ratio (complying with the 80% four-fifths rule). However, it was flagged because its "
+                        f"absolute gap (SPD of {spd:.2f}) exceeded your configured SPD threshold of {spd_threshold:.2f}."
+                    )
+                elif fails_di and not fails_spd:
+                    verdict = (
+                        f"Notice: This subgroup breached the legal Disparate Impact (DI) 80% rule ({di_pct}% < 80%), "
+                        f"even though its absolute gap (SPD of {spd:.2f}) remained within your configured SPD threshold of {spd_threshold:.2f}."
+                    )
+                else:
+                    verdict = (
+                        f"This subgroup breached both fairness criteria: failing the 80% Disparate Impact rule "
+                        f"({di_pct}% < 80%) and exceeding your configured SPD threshold ({spd:.2f} > {spd_threshold:.2f})."
+                    )
+
+                bias["explanation"] = intro + verdict + f" Combining both metrics yields the total compound bias score of {bias['fitness_score']:.4f}."
                 filtered_biases.append(bias)
+
+        for rank_num, bias in enumerate(filtered_biases, 1):
+            bias["rank"] = rank_num
 
         raw_results = {
             "ranked_biases": filtered_biases,
             "provenance_records": prov_records,
             "chart_points": chart_points_history,
-            "references": FAIRNESS_REFERENCES
+            "references": FAIRNESS_REFERENCES,
+            "threshold": threshold,
+            "spd_threshold": spd_threshold
         }
 
 

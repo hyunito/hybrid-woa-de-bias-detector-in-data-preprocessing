@@ -11,7 +11,7 @@ class DEAuditor:
     Optimized for minimal memory overhead and zero telemetry churn during benchmarks.
     """
 
-    def __init__(self, metadata_logs=None, pop_size=30, F=1.8, CR=0.75, tolerance=1e-6, max_stagnation=25):
+    def __init__(self, metadata_logs=None, pop_size=35, F=1.8, CR=0.75, tolerance=1e-6, max_stagnation=20):
         self.pop_size = pop_size
         self.F = F
         self.CR = CR
@@ -81,15 +81,19 @@ class DEAuditor:
         ):
             seed_positions = [seed_positions]
 
-        # 1. Start population directly with the EXACT spots from WOA (zero noise, zero jitter)
         pop = [self.clip_position(np.array(s, dtype=float)) for s in seed_positions]
 
-        # 2. Fill the population to pop_size by cleanly replicating the exact seeds
         i = 0
         while len(pop) < self.pop_size:
-            pop.append(pop[i % len(seed_positions)].copy())
+            base_seed = seed_positions[i % len(seed_positions)].copy()
+            candidate = np.array(base_seed, dtype=float)
+            
+            offset =random.choice([-4, -3, -2, 2, 3, 4])
+            candidate[2] += offset
+            
+            jittered_ind = self.clip_position(candidate)
+            pop.append(jittered_ind)
             i += 1
-
         pop = np.array(pop)
 
         # 3. Run DE refinement on those exact spots
@@ -141,8 +145,10 @@ class DEAuditor:
             # Check for convergence: reset counter only if meaningful improvement exceeds tolerance
             if self.best_fitness - previous_best > self.tolerance:
                 stagnation_counter = 0
+                #print(stagnation_counter)
                 previous_best = self.best_fitness
             else:
                 stagnation_counter += 1
+                #print(stagnation_counter)
 
         return self.best_position

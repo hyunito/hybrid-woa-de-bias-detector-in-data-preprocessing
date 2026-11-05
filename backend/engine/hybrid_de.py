@@ -111,9 +111,15 @@ class DEAuditor:
         # 2. Fill the population to pop_size by cleanly replicating the exact seeds
         i = 0
         while len(pop) < self.pop_size:
-            pop.append(pop[i % len(seed_positions)].copy())
+            base_seed = seed_positions[i % len(seed_positions)].copy()
+            candidate = np.array(base_seed, dtype=float)
+            
+            offset =random.choice([-8, -5, -2, -1, 1, 2, 5, 8])
+            candidate[2] += offset
+            
+            jittered_ind = self.clip_position(candidate)
+            pop.append(jittered_ind)
             i += 1
-
         pop = np.array(pop)
 
         # 3. Run DE refinement on those exact spots

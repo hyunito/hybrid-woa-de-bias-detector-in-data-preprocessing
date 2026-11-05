@@ -14,7 +14,7 @@ class WOAAuditor:
     Optimized for minimal memory overhead and zero telemetry churn during benchmarks.
     """
 
-    def __init__(self, metadata_logs=None, num_whales=40, max_iter=10, de_params=None):
+    def __init__(self, metadata_logs=None, num_whales=30, max_iter=20, de_params=None):
         self.num_whales = num_whales
         self.max_iter = max_iter
         self.metadata_logs = metadata_logs
@@ -139,8 +139,7 @@ class WOAAuditor:
                     self.best_fitness = score
                     self.best_position = whales_pos[i].copy()
 
-            # Linearly decrease parameter 'a' from 2 to 0
-            a = 2.0 - (t * (2.0 / self.max_iter))
+            a = 2 - (t * (2 / self.max_iter))
 
             for i in range(num_whales):
                 s_idx = int(round(whales_pos[i][0]))
@@ -148,8 +147,7 @@ class WOAAuditor:
                 lead_pos = self.transformation_bests[(s_idx, t_idx)]["position"]
                 curr_pos = whales_pos[i]
 
-                # Long-range demographic jump with 15% probability in early itera
-                if random.random() < 0.15 and t < self.max_iter * 0.7:
+                if random.random() < 0.35 and t < self.max_iter * 0.4:
                     s_name = self.scripts[s_idx]
                     t_name = self.transformations[s_name][t_idx]
                     d_list = self.demographics.get((s_name, t_name), [])
@@ -172,7 +170,7 @@ class WOAAuditor:
                         new_pos = lead_pos - A * D
                     else:
                         # Random search within the same script sub-swarm
-                        rand_idx = s_idx * whales_per_script + random.randint(0, whales_per_script - 1)
+                        rand_idx = random.randint(0, num_whales - 1)
                         rand_whale = whales_pos[rand_idx]
                         D = abs(C * rand_whale - curr_pos)
                         new_pos = rand_whale - A * D

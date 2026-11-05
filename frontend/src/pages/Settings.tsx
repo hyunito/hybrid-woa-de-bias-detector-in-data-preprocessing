@@ -18,17 +18,17 @@ interface SettingsState {
   crossoverRate: number;
   maxStagnationLimit: number;
 
-  biasThreshold: number;
+  spdThreshold: number;
 }
 
 const DEFAULT_ALGO_SETTINGS = {
-  searchingAgents: 30,
-  maxIterations: 30,
+  searchingAgents: 40,
+  maxIterations: 20,
   populationSize: 30,
-  scaleFactor: 0.5,
-  crossoverRate: 0.9,
+  scaleFactor: 1.8,
+  crossoverRate: 0.75,
   maxStagnationLimit: 25,
-  biasThreshold: 0.2,
+  spdThreshold: 0.0,
 };
 
 interface ParamLabelProps {
@@ -110,6 +110,7 @@ export default function Settings() {
               ...prev,
               ...DEFAULT_ALGO_SETTINGS,
               ...algoData,
+              spdThreshold: typeof algoData.spdThreshold === "number" ? algoData.spdThreshold : (typeof algoData.biasThreshold === "number" ? algoData.biasThreshold : 0.0),
             }));
           }
         }
@@ -230,7 +231,7 @@ export default function Settings() {
           scaleFactor: Number(settings.scaleFactor),
           crossoverRate: Number(settings.crossoverRate),
           maxStagnationLimit: Number(settings.maxStagnationLimit),
-          biasThreshold: Number(settings.biasThreshold),
+          spdThreshold: Number(settings.spdThreshold),
         }),
       });
       if (algoRes.ok) {
@@ -472,14 +473,14 @@ export default function Settings() {
 
             </div>
           </div>
-          <div className="border border-slate-300/90 rounded-2xl p-3 px-6 bg-white shadow-xs">
+          <div className="border border-slate-300/90 rounded-2xl p-4 px-6 bg-white shadow-xs space-y-3">
             <div className="flex items-center justify-between text-xs">
               <ParamLabel
-                label="BIAS THRESHOLD"
-                tooltip="The disparity tolerance level above which a demographic group is officially flagged as biased."
+                label="STATISTICAL PARITY (SPD) THRESHOLD"
+                tooltip="The maximum acceptable absolute gap in positive outcome rates between groups (0.00 to 1.00 per Thesis Page 75). Subgroups with an absolute gap exceeding this value are flagged as biased."
               />
               <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
-                {settings.biasThreshold.toFixed(2)}
+                {settings.spdThreshold.toFixed(2)}
               </span>
             </div>
 
@@ -487,19 +488,32 @@ export default function Settings() {
               <input
                 type="range"
                 min="0"
-                max="2"
-                step="0.05"
-                value={settings.biasThreshold}
-                onChange={(e) => updateField("biasThreshold", Number(e.target.value))}
+                max="1"
+                step="0.01"
+                value={settings.spdThreshold}
+                onChange={(e) => updateField("spdThreshold", Number(e.target.value))}
                 className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 focus:outline-hidden"
               />
               <div className="flex justify-between text-[11px] font-bold text-slate-700 mt-2">
-                <span>0</span>
-                <span className="text-slate-400 font-normal">0.5</span>
-                <span className="text-slate-400 font-normal">1.0</span>
-                <span className="text-slate-400 font-normal">1.5</span>
-                <span>2</span>
+                <span>0.00 (Strict)</span>
+                <span className="text-slate-400 font-normal">0.25</span>
+                <span className="text-slate-400 font-normal">0.50</span>
+                <span className="text-slate-400 font-normal">0.75</span>
+                <span>1.00</span>
               </div>
+            </div>
+
+            {/* Permanent Locked Four-Fifths DI Standard Banner */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs pt-3 border-t border-slate-100">
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-[#0F1B2B]">DISPARATE IMPACT (DI) STANDARD</span>
+                <span className="text-[10px] uppercase font-semibold tracking-wider text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                  Legal Four-Fifths Rule
+                </span>
+              </div>
+              <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200 w-fit">
+                Locked at 0.80 (20% Shortfall)
+              </span>
             </div>
           </div>
 

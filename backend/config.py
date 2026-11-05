@@ -1,7 +1,14 @@
 import os
+import sys
 from typing import Dict, Set
 
 BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+_engine_dir = os.path.join(BACKEND_DIR, "engine")
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
+if _engine_dir not in sys.path:
+    sys.path.insert(0, _engine_dir)
+
 PIPELINE_DIR = os.path.abspath(os.path.join(BACKEND_DIR, "pipeline"))
 PROJECT_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, ".."))
 STORAGE_DIR = os.path.abspath(os.path.join(PROJECT_ROOT, "backend/storage"))

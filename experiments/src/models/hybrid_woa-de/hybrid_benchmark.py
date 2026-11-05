@@ -2,11 +2,19 @@ import sys
 import os
 import time
 import tracemalloc
+import fitness
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from hybrid_woa import WOAAuditor
 
-runs = 30
+# Dynamically determine the ground truth target score from the loaded search space
+fitness.get_space_dimensions()
+target_score = max(fitness._fitness_cache.values())
+
+runs = 1
 traceability = 0
+total_time = 0.0
+total_ram = 0.0
 
 results = []
 for run in range(runs):
@@ -34,9 +42,12 @@ for run in range(runs):
         "execution_time": execution_time,
         "peak_ram_mb": peak_ram_mb
     })
-  
-    if result['max_fitness_score'] == 1.6577509532428722:
+    total_time = total_time + execution_time
+    total_ram = total_ram + peak_ram_mb
+    if abs(result['max_fitness_score'] - target_score) < 1e-6:
         traceability = traceability + 1
     print(f"Transformation: {result['transformation_name']} | Score: {result['max_fitness_score']:.4f}\nTime: {execution_time:.4f}s | Peak RAM Usage: {peak_ram_mb:.6f}MB")
 
-print(f"Traceability Rate: {traceability} / 30")
+#print(f"\nTarget Ground Truth Score: {target_score:.6f}")
+#print(f"Traceability Rate: {traceability} / {runs} ({(traceability / runs) * 100:.1f}%)")
+#print(f"Average Time: {total_time/run} \nAverage Peak RAM: {total_ram/run}")

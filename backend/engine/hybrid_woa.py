@@ -72,30 +72,31 @@ class WOAAuditor:
         :return: Final audit results dictionary from hybrid DE refinement.
         """
         de_auditor = DEAuditor(metadata_logs=self.metadata_logs, **self.de_params)
-        self.all_biases = []
-        num_scripts = len(self.scripts)
-        whales_per_script = max(1, self.num_whales // num_scripts)
-        total_whales = num_scripts * whales_per_script
+            # Collect all valid (script_index, transformation_index) pairs
+        all_trans = []
+        for s_idx, s_name in enumerate(self.scripts):
+            for t_idx in range(len(self.transformations.get(s_name, []))):
+                all_trans.append((s_idx, t_idx))
 
+        whales_per_trans = max(1, self.num_whales // len(all_trans))
+        # Assign whales evenly across each transformation
         whales_pos = []
-        for s in range(num_scripts):
-            script_name = self.scripts[s]
-            trans_list = self.transformations.get(script_name, [])
-            t_max = max(0, len(trans_list) - 1)
-            for _ in range(whales_per_script):
-                t_val = random.randint(0, t_max)
-                trans_name = trans_list[t_val] if trans_list else "None"
-                demo_list = self.demographics.get((script_name, trans_name), [])
-                d_max = max(0, len(demo_list) - 1)
+        for s_idx, t_idx in all_trans:
+            s_name = self.scripts[s_idx]
+            t_name = self.transformations[s_name][t_idx]
+            demo_list = self.demographics.get((s_name, t_name), [])
+            d_max = max(0, len(demo_list) - 1)
+            for _ in range(whales_per_trans):
                 d_val = random.randint(0, d_max)
-                whales_pos.append([float(s), float(t_val), float(d_val)])
-            
+                whales_pos.append([float(s_idx), float(t_idx), float(d_val)])
+
+
         whales_pos = np.array(whales_pos)
         self.best_fitness = float('-inf')
         self.best_position = whales_pos[0].copy()
-        
+
         self.best_position = self.core_algo(whales_pos, callback=callback)
-           
+
         dynamic_seeds = [entry["position"] for entry in self.transformation_bests.values()]
         # Transition to Phase 2: Differential Evolution (DE) local refinement seeded at WOA best
         result = de_auditor.run_de(
@@ -116,7 +117,6 @@ class WOAAuditor:
         num_whales = len(whales_pos)
         whales_per_script = max(1, num_whales // num_scripts)
 
-        # 1. Initialize BOTH script-level and transformation-level tracking
         self.script_bests = {}
         self.transformation_bests = {}
         for s_idx, s_name in enumerate(self.scripts):
@@ -127,16 +127,15 @@ class WOAAuditor:
                 self.transformation_bests[(s_idx, t_idx)] = {"fitness": init_f, "position": init_p.copy()}
                 if s_idx not in self.script_bests or init_f > self.script_bests[s_idx]["fitness"]:
                     self.script_bests[s_idx] = {"fitness": init_f, "position": init_p.copy()}
-        
+
         for t in range(self.max_iter):
             # Evaluate all whales
             for i in range(num_whales):
-                whales_pos[i] = self.clip_position(whales_pos[i])
                 score = self.calculate_fitness(whales_pos[i])
                 s_idx = int(round(whales_pos[i][0]))
                 t_idx = int(round(whales_pos[i][1]))
-                
-                # Update transformation-level best (preserves Num Outlier!)
+
+                # Update transformation-level best
                 if (s_idx, t_idx) in self.transformation_bests:
                     if score > self.transformation_bests[(s_idx, t_idx)]["fitness"]:
                         self.transformation_bests[(s_idx, t_idx)] = {
@@ -156,24 +155,20 @@ class WOAAuditor:
                     self.best_fitness = score
                     self.best_position = whales_pos[i].copy()
 
-            # Linearly decrease parameter 'a' from 2 to 0
-            a = 2.0 - (t * (2.0 / self.max_iter)) 
-            
-            # Script-Preserving Multi-Swarm Movement
+            a = 2 - (t * (2 / self.max_iter))
+
             for i in range(num_whales):
-                s_idx = i // whales_per_script
-                lead_pos = self.script_bests[s_idx]["position"]  #Script sub-swarm leader
+                s_idx = int(round(whales_pos[i][0]))
+                t_idx = int(round(whales_pos[i][1]))
+                lead_pos = self.transformation_bests[(s_idx, t_idx)]["position"]
                 curr_pos = whales_pos[i]
 
-                # Long-range demographic jump with 15% probability in early iterations
-                if random.random() < 0.15 and t < self.max_iter * 0.7:
+                if random.random() < 0.5 and t < self.max_iter * 0.4:
                     s_name = self.scripts[s_idx]
-                    t_list = self.transformations.get(s_name, [])
-                    t_rand = random.randint(0, max(0, len(t_list) - 1))
-                    t_name = t_list[t_rand] if t_list else "None"
+                    t_name = self.transformations[s_name][t_idx]
                     d_list = self.demographics.get((s_name, t_name), [])
-                    d_rand = random.randint(0, max(0, len(d_list) - 1))
-                    whales_pos[i] = np.array([float(s_idx), float(t_rand), float(d_rand)])
+                    d_max = max(0, len(d_list) - 1)
+                    whales_pos[i][2] = float(random.randint(0, d_max))
                     continue
 
                 r1 = random.random()
@@ -182,15 +177,14 @@ class WOAAuditor:
                 C = 2 * r2
                 l = random.uniform(-1, 1)
                 p = random.random()
-                
+
                 if p < 0.5:
                     if abs(A) < 1:
                         # Encircling script leader
                         D = abs(C * lead_pos - curr_pos)
                         new_pos = lead_pos - A * D
                     else:
-                        # Random search within the same script sub-swarm
-                        rand_idx = s_idx * whales_per_script + random.randint(0, whales_per_script - 1)
+                        rand_idx = random.randint(0, num_whales - 1)
                         rand_whale = whales_pos[rand_idx]
                         D = abs(C * rand_whale - curr_pos)
                         new_pos = rand_whale - A * D
@@ -202,6 +196,7 @@ class WOAAuditor:
 
                 # Anchor whale permanently inside its assigned script
                 new_pos[0] = float(s_idx)
+                new_pos[1] = float(t_idx)
                 whales_pos[i] = self.clip_position(new_pos)
 
                 dummy_fit, dummy_script, dummy_trans, dummy_demo = fitness.calculate_3d_fitness(

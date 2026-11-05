@@ -78,7 +78,10 @@ def load_provenance_data(rows, reload: bool = False):
 
 def get_fitness_detail(script_name: str, trans_name: str, demo_key: str) -> dict:
     """Returns the granular disparity breakdown for a specific demographic group."""
-    return _fitness_details_cache[(script_name, trans_name, demo_key)]
+    return _fitness_details_cache.get(
+        (script_name, trans_name, demo_key),
+        {"spd": 0.0, "di": 1.0, "di_penalty": 0.0, "rate_target": 0.0}
+    )
 
 def _load_records_from_json(path: str):
     """Loads provenance records from local JSON fallback file if database is unavailable."""

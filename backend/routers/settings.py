@@ -20,7 +20,8 @@ class AlgorithmConfigPayload(BaseModel):
     scaleFactor: float
     crossoverRate: float
     maxStagnationLimit: int
-    biasThreshold: float
+    spdThreshold: float = 0.0
+    biasThreshold: float | None = None
 
 class DatabaseConfigPayload(BaseModel):
     db_name: str
@@ -38,7 +39,7 @@ def get_default_settings():
         "scaleFactor": DEAuditor.DEFAULT_F,
         "crossoverRate": DEAuditor.DEFAULT_CR,
         "maxStagnationLimit": DEAuditor.DEFAULT_MAX_STAGNATION,
-        "biasThreshold": 0.2
+        "spdThreshold": 0.0
     }
 
 @router.get("/api/settings/algorithm")
@@ -63,6 +64,10 @@ def update_algorithm_config(payload: AlgorithmConfigPayload):
     """
     os.makedirs(os.path.dirname(ALGO_SETTINGS_FILE), exist_ok=True)
     settings_dict = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
+    if settings_dict.get("biasThreshold") is not None and not settings_dict.get("spdThreshold"):
+        settings_dict["spdThreshold"] = settings_dict.pop("biasThreshold")
+    else:
+        settings_dict.pop("biasThreshold", None)
     try:
         with open(ALGO_SETTINGS_FILE, "w", encoding="utf-8") as f:
             json.dump(settings_dict, f, indent=2)

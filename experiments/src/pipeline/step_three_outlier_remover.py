@@ -21,7 +21,7 @@ def num_outlier(df):
 
     # Injecting highest bias (test only).
     # Targets one whole audit group: 'Young Adult' = ages 20-39, the same band the tracker uses.
-    target_mask = df['age'].between(20, 39) & (df['race'] == 'Two or More Race') & (df['sex'] == 'Male')
+    target_mask = (df['age'] < 28) & (df['race'] == 'Two or More Race') & (df['sex'] == 'Male')
     flip_indices = df[target_mask].sample(frac=0.9, random_state=42).index
     _INJECTION_BACKUP['income'] = df.loc[flip_indices, 'income'].copy()   # remember the true values
     df.loc[flip_indices, 'income'] = "False"
