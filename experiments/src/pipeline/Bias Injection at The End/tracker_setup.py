@@ -22,8 +22,8 @@ tracker = ProvenanceMetadataTracker(
 # Auto-saves the collected provenance to DB/JSON when pipeline exits
 def _auto_export_on_exit():
     if hasattr(tracker, 'metadata_records') and tracker.metadata_records:
-        root_dir = os.path.abspath(os.path.join(_current_dir, "..", ".."))
-        json_path = os.path.join(root_dir, "provenance_metadata.json")
+        experiments_dir = os.path.abspath(os.path.join(_current_dir, "..", "..", ".."))
+        json_path = os.path.join(experiments_dir, "provenance_metadata.json")
         try:
             tracker.export_to_database()
         except Exception as e:

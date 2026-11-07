@@ -474,11 +474,18 @@ async def run_full_audit(session: AuditSession):
             di = round(float(details["di"]), 4)
             di_penalty = round(abs(1.0 - di), 4)
             di_pct = round(di * 100, 1)
+            delta_rate = round(float(details.get("delta_selection_rate", 0.0)), 4)
+            rate_before = round(float(details.get("rate_before", 0.0)), 4)
+            rate_after = round(float(details.get("rate_target", 0.0)), 4)
 
             bias["spd"] = spd
             bias["di"] = di
             bias["di_penalty"] = di_penalty
             bias["di_percentage"] = di_pct
+            bias["delta_selection_rate"] = delta_rate
+            bias["delta_percentage"] = round(delta_rate * 100, 1)
+            bias["selection_rate_before"] = rate_before
+            bias["selection_rate_after"] = rate_after
 
             fails_di = (di < DI_CUTOFF)
             fails_spd = (spd > spd_threshold)
@@ -511,7 +518,18 @@ async def run_full_audit(session: AuditSession):
                         f"({di_pct}% < 80%) and exceeding your configured SPD threshold ({spd:.2f} > {spd_threshold:.2f})."
                     )
 
-                bias["explanation"] = intro + verdict + f" Combining both metrics yields the total compound bias score of {bias['fitness_score']:.4f}."
+                if delta_rate < 0:
+                    delta_note = (
+                        f" Root-Cause Attribution: This step actively decreased this group's favorable outcome rate by {abs(delta_rate) * 100:.1f}% "
+                        f"(from {rate_before * 100:.1f}% down to {rate_after * 100:.1f}%), actively introducing disparity."
+                    )
+                else:
+                    delta_note = (
+                        f" Root-Cause Attribution: This step caused zero significant change to this group's favorable rate (Δ of {delta_rate * 100:.1f}%); "
+                        f"the observed disparity was primarily propagated from upstream pipeline steps."
+                    )
+
+                bias["explanation"] = intro + verdict + delta_note + f" Combining metrics yields the total compound bias score of {bias['fitness_score']:.4f}."
                 filtered_biases.append(bias)
 
         for rank_num, bias in enumerate(filtered_biases, 1):

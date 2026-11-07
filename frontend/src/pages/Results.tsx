@@ -28,6 +28,11 @@ interface RankedBias {
   explanation?: string;
   fails_di?: boolean;
   fails_spd?: boolean;
+  delta_selection_rate?: number;
+  delta_percentage?: number;
+  selection_rate_before?: number;
+  selection_rate_after?: number;
+  rate_target?: number;
 }
 
 interface ReferenceItem {
@@ -339,6 +344,12 @@ export default function Results() {
     return currentBias.explanation;
   }, [currentBias, formattedGroupLabel]);
 
+  const isRootCause = useMemo(() => {
+    return currentBias?.delta_selection_rate != null && currentBias.delta_selection_rate < 0;
+  }, [currentBias]);
+
+
+
   const handleCopyId = () => {
     navigator.clipboard.writeText(auditId);
     setCopiedId(true);
@@ -636,145 +647,7 @@ export default function Results() {
                         </div>
                       )}
 
-                      {/* ================= HIGH-EMPHASIS TRANSPARENCY & BIAS EXPLANATION HERO ================= */}
-                      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs hover:border-slate-300 transition-all flex flex-col gap-4 sm:gap-5">
-                        {/* Section Header */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3.5">
-                          <div className="flex items-center gap-2.5">
-                            <span className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
-                              <i className="bi bi-shield-check text-base" />
-                            </span>
-                            <div>
-                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight">
-                                Transparency Breakdown & Bias Explanation
-                              </h4>
-                              <span className="text-[11px] text-slate-500 font-medium">
-                                Mathematical dissection of demographic disparity and legal thresholds
-                              </span>
-                            </div>
-                          </div>
-
-                        </div>
-
-                        {/* Three Key Fairness Metric Cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4">
-                          {/* 1. Total Compound Bias Score */}
-                          <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col justify-between gap-2 hover:border-slate-300 transition-all">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-bold uppercase tracking-wider text-rose-600 flex items-center gap-1.5">
-                                <i className="bi bi-exclamation-triangle-fill text-xs text-rose-500" />
-                                Compound Bias Score
-                              </span>
-                              <span className="text-[10px] font-mono font-bold text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
-                                |SPD| + |1-DI|
-                              </span>
-                            </div>
-                            <span className="text-2xl sm:text-3xl font-black font-mono text-rose-600 tracking-tight">
-                              {currentBias.fitness_score.toFixed(4)}
-                            </span>
-                            <span className="text-[11px] text-slate-500 font-medium">
-                              Combined: <strong className="text-slate-700 font-mono">{currentBias.spd != null ? currentBias.spd.toFixed(2) : "0.00"}</strong> (SPD) + <strong className="text-slate-700 font-mono">{(currentBias.di_penalty ?? (currentBias.di != null ? Math.abs(1 - currentBias.di) : 0)).toFixed(2)}</strong> (DI)
-                            </span>
-                          </div>
-
-                          {/* 2. Statistical Parity Difference (SPD) */}
-                          <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col justify-between gap-2 hover:border-slate-300 transition-all">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
-                                <i className="bi bi-distribute-vertical text-xs text-amber-600" />
-                                Absolute Gap (SPD)
-                              </span>
-                            
-                            </div>
-                            <span className="text-2xl sm:text-3xl font-black font-mono text-amber-800 tracking-tight">
-                              {currentBias.spd != null ? currentBias.spd.toFixed(2) : "0.00"}
-                            </span>
-                            <span className="text-[11px] text-slate-500 font-medium">
-                              {currentBias.spd != null ? (
-                                <>
-                                  <strong className="text-amber-800 font-bold">{(currentBias.spd * 100).toFixed(1)}%</strong> lower positive outcome rate
-                                </>
-                              ) : (
-                                "No difference between demographic groups"
-                              )}
-                            </span>
-                          </div>
-
-                          {/* 3. Disparate Impact (DI) */}
-                          <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col justify-between gap-2 hover:border-slate-300 transition-all">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
-                                <i className="bi bi-pie-chart-fill text-xs text-indigo-600" />
-                                Selection Ratio (DI)
-                              </span>
-                            </div>
-                            <span className="text-2xl sm:text-3xl font-black font-mono text-indigo-800 tracking-tight">
-                              {currentBias.di != null ? currentBias.di.toFixed(2) : "1.00"}
-                              <span className="text-sm sm:text-base font-bold font-mono text-indigo-500 ml-1.5">
-                                (or {(currentBias.di_penalty ?? (currentBias.di != null ? Math.abs(1 - currentBias.di) : 0)).toFixed(2)})
-                              </span>
-                            </span>
-                            <span className="text-[11px] text-slate-500 font-medium">
-                              {currentBias.di != null ? (
-                                <>
-                                  Selected only <strong className="text-indigo-800 font-bold">{currentBias.di_percentage != null ? `${currentBias.di_percentage}%` : `${(currentBias.di * 100).toFixed(0)}%`}</strong> as often as top group
-                                </>
-                              ) : (
-                                "Equal selection rate to benchmark"
-                              )}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Plain-English Root Cause Explanation Box */}
-                        {displayedExplanation ? (
-                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5 space-y-2.5">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 text-slate-800">
-                                <span className="w-5 h-5 rounded-md bg-slate-200 flex items-center justify-center text-slate-700">
-                                  <i className="bi bi-chat-left-quote-fill text-xs" />
-                                </span>
-                                <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                                  Why is this group considered biased?
-                                </span>
-                              </div>
-                            </div>
-                            <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-medium pl-1">
-                              {displayedExplanation}
-                            </p>
-
-                            <div className="pt-2 border-t border-slate-200 flex flex-wrap items-center gap-2 text-[10px] text-slate-500 font-medium">
-                              <span className="text-slate-400 font-bold uppercase tracking-wider">Literature Citations:</span>
-                              <a
-                                href="https://doi.org/10.1145/3457607"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="bg-white hover:bg-slate-100 border border-slate-200 hover:border-slate-300 px-2 py-0.5 rounded-md text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1 transition-colors"
-                                title="Mehrabi et al. (2021) - A Survey on Bias and Fairness in Machine Learning (ACM Computing Surveys)"
-                              >
-                                <span>SPD: Mehrabi et al. (2021)</span>
-                                <i className="bi bi-box-arrow-up-right text-[9px]" />
-                              </a>
-                              <a
-                                href="https://doi.org/10.1145/3494672"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="bg-white hover:bg-slate-100 border border-slate-200 hover:border-slate-300 px-2 py-0.5 rounded-md text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1 transition-colors"
-                                title="Pessach & Shmueli (2022) - A Review on Fairness in Machine Learning (ACM Computing Surveys)"
-                              >
-                                <span>DI: Pessach & Shmueli (2022)</span>
-                                <i className="bi bi-box-arrow-up-right text-[9px]" />
-                              </a>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="bg-white border border-slate-200 rounded-xl p-3.5 text-xs text-slate-500 italic">
-                            Disparity details for this subgroup have been verified against benchmark provenance logs.
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Script Name & Transformation Cards */}
+                      {/* Script Name & Transformation Cards (Provenance Lineage at the Top) */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
                         {/* Script Name Card */}
                         <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs hover:border-slate-300 transition-all flex flex-col justify-between">
@@ -806,13 +679,26 @@ export default function Results() {
                               <i className="bi bi-gear-wide-connected text-xs text-slate-400" />
                               Root-Cause Transformation
                             </span>
+                            {isRootCause ? (
+                              <span className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <i className="bi bi-lightning-charge-fill text-[9px] text-rose-500" />
+                                Active Root Cause (Δ {(currentBias!.delta_selection_rate! * 100).toFixed(1)}%)
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <i className="bi bi-link-45deg text-[10px] text-slate-400" />
+                                Disparity Carrier (Δ {currentBias?.delta_selection_rate != null ? (currentBias.delta_selection_rate * 100).toFixed(1) : "0.0"}%)
+                              </span>
+                            )}
                           </div>
                           <div>
                             <span className="text-sm sm:text-base font-black text-slate-900 tracking-tight block mt-1" title={currentBias?.transformation_name}>
                               {currentBias?.transformation_name || "N/A"}
                             </span>
                             <span className="text-[10px] text-slate-400 mt-1 block font-medium">
-                              Function or step that causes disparity during preprocessing
+                              {isRootCause
+                                ? "Transformation that actively introduced this demographic drop"
+                                : "Transformation step within pipeline (inherited upstream disparity)"}
                             </span>
                           </div>
                         </div>
@@ -820,8 +706,8 @@ export default function Results() {
 
                       {/* Secondary Provenance Metadata Container */}
                       <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-4 space-y-3">
-                        {/* Timestamp & Row Count Before/After */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-3 border-b border-slate-200/60">
+                        {/* Timestamp & Row Count & Delta Rate Before/After */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pb-3 border-b border-slate-200/60">
                           <div>
                             <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
                               Execution Timestamp
@@ -850,6 +736,33 @@ export default function Results() {
                               </span>
                             </div>
                           </div>
+
+                          <div>
+                            <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-0.5">
+                              Approval Rate Before / After
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-mono text-slate-800 font-bold">
+                                {currentBias?.selection_rate_before != null ? `${(currentBias.selection_rate_before * 100).toFixed(1)}%` : "N/A"}
+                              </span>
+                              <i className="bi bi-arrow-right text-[10px] text-slate-400" />
+                              <span className="text-xs font-mono text-slate-800 font-bold">
+                                {currentBias?.selection_rate_after != null ? `${(currentBias.selection_rate_after * 100).toFixed(1)}%` : "N/A"}
+                              </span>
+                              <span className={cn(
+                                "text-[10px] font-mono font-bold rounded px-1.5 py-0.2",
+                                isRootCause
+                                  ? "text-rose-700 bg-rose-50 border border-rose-200"
+                                  : "text-slate-600 bg-slate-100 border border-slate-200"
+                              )}>
+                                {currentBias?.delta_percentage != null
+                                  ? `${currentBias.delta_percentage > 0 ? "+" : ""}${currentBias.delta_percentage.toFixed(1)}%`
+                                  : currentBias?.delta_selection_rate != null
+                                    ? `${currentBias.delta_selection_rate > 0 ? "+" : ""}${(currentBias.delta_selection_rate * 100).toFixed(1)}%`
+                                    : "0.0%"}
+                              </span>
+                            </div>
+                          </div>
                         </div>
 
                         <div className="pb-3 border-b border-slate-200/60">
@@ -868,6 +781,187 @@ export default function Results() {
                             ))}
                           </div>
                         </div>
+                      </div>
+
+                      {/* ================= HIGH-EMPHASIS TRANSPARENCY & BIAS EXPLANATION HERO ================= */}
+                      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs hover:border-slate-300 transition-all flex flex-col gap-4 sm:gap-5">
+                        {/* Section Header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <span className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                              <i className="bi bi-shield-check text-base" />
+                            </span>
+                            <div>
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight">
+                                Transparency Breakdown & Bias Explanation
+                              </h4>
+                              <span className="text-[11px] text-slate-500 font-medium">
+                                Mathematical dissection of demographic disparity and legal thresholds
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ================= COMPOUND BIAS SCORE HERO (HOUSING SPD & DI) ================= */}
+                        <div className="bg-slate-50/70 border border-slate-200/90 rounded-2xl p-4 sm:p-5 flex flex-col gap-4 shadow-2xs">
+                          {/* Compound Score Header Banner */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3.5">
+                            <div className="flex items-center gap-3">
+                              <span className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center shrink-0 shadow-2xs">
+                                <i className="bi bi-exclamation-triangle-fill text-lg text-rose-500" />
+                              </span>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-rose-700">
+                                    Compound Bias Score
+                                  </span>
+                                  <span className="text-[10px] font-mono font-bold text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
+                                    |SPD| + |1-DI|
+                                  </span>
+                                </div>
+                                <span className="text-[11px] text-slate-500 font-medium block mt-0.5">
+                                  Additive compound fairness metric quantifying total demographic disparity
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Primary Score & Formula Equation */}
+                            <div className="flex items-baseline sm:items-end flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                              <span className="text-3xl sm:text-4xl font-black font-mono text-rose-600 tracking-tight">
+                                {currentBias.fitness_score.toFixed(4)}
+                              </span>
+                              <span className="text-xs text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-lg font-medium shadow-2xs">
+                                Combined: <strong className="text-slate-800 font-mono">{currentBias.spd != null ? currentBias.spd.toFixed(2) : "0.00"}</strong> (SPD) + <strong className="text-slate-800 font-mono">{(currentBias.di_penalty ?? (currentBias.di != null ? Math.abs(1 - currentBias.di) : 0)).toFixed(2)}</strong> (DI penalty)
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Internal 2-Column Breakdown: Absolute Gap (SPD) and Selection Ratio (DI) */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                            {/* Component A: Absolute Gap (SPD) */}
+                            <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col justify-between gap-2 shadow-2xs hover:border-slate-300 transition-all">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
+                                  <i className="bi bi-distribute-vertical text-xs text-amber-600" />
+                                  Absolute Gap (SPD)
+                                </span>
+                              </div>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-2xl sm:text-3xl font-black font-mono text-amber-800 tracking-tight">
+                                  {currentBias.spd != null ? currentBias.spd.toFixed(2) : "0.00"}
+                                </span>
+                                <span className="text-xs font-mono text-amber-700">
+                                  {currentBias.spd != null ? `(${currentBias.spd.toFixed(4)})` : ""}
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-slate-600 font-medium">
+                                {currentBias.spd != null ? (
+                                  <>
+                                    <strong className="text-amber-800 font-bold">{(currentBias.spd * 100).toFixed(1)}%</strong> lower positive outcome rate than top group
+                                  </>
+                                ) : (
+                                  "No difference between demographic groups"
+                                )}
+                              </span>
+                            </div>
+
+                            {/* Component B: Selection Ratio (DI) */}
+                            <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col justify-between gap-2 shadow-2xs hover:border-slate-300 transition-all">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
+                                  <i className="bi bi-pie-chart-fill text-xs text-indigo-600" />
+                                  Selection Ratio (DI)
+                                </span>
+                              </div>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-2xl sm:text-3xl font-black font-mono text-indigo-800 tracking-tight">
+                                  {currentBias.di != null ? currentBias.di.toFixed(2) : "1.00"}
+                                </span>
+                                <span className="text-xs sm:text-sm font-bold font-mono text-indigo-500">
+                                  (or {(currentBias.di_penalty ?? (currentBias.di != null ? Math.abs(1 - currentBias.di) : 0)).toFixed(2)})
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-slate-600 font-medium">
+                                {currentBias.di != null ? (
+                                  <>
+                                    Selected only <strong className="text-indigo-800 font-bold">{currentBias.di_percentage != null ? `${currentBias.di_percentage}%` : `${(currentBias.di * 100).toFixed(0)}%`}</strong> as often as top group
+                                  </>
+                                ) : (
+                                  "Equal selection rate to benchmark"
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Plain-English Root Cause Explanation Box with Emphasized Step Impact */}
+                        {displayedExplanation ? (
+                          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-2xs">
+                            {/* Header with Title and Root Cause Badge */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-3">
+                              <div className="flex items-center gap-2 text-slate-800">
+                                <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+                                  <i className="bi bi-chat-left-quote-fill text-xs" />
+                                </span>
+                                <span className="text-xs sm:text-[13px] font-bold uppercase tracking-wider text-slate-800">
+                                  Why is this group considered biased?
+                                </span>
+                              </div>
+
+                              {/* Step Impact Status Pill */}
+                              <div className="flex items-center gap-2">
+                                <span className={cn(
+                                  "text-xs font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg border flex items-center gap-1.5 shadow-2xs",
+                                  isRootCause
+                                    ? "bg-rose-50 text-rose-700 border-rose-300"
+                                    : "bg-white text-slate-700 border-slate-300"
+                                )}>
+                                  <span className={cn(
+                                    "w-2 h-2 rounded-full",
+                                    isRootCause ? "bg-rose-600 animate-pulse" : "bg-slate-400"
+                                  )} />
+                                  {isRootCause ? "Root Cause" : "Carrier"}
+                                </span>
+                              </div>
+                            </div>
+
+                            
+
+                            {/* Narrative Paragraph */}
+                            <p className="text-xs sm:text-[13px] text-slate-700 leading-relaxed font-medium pl-1">
+                              {displayedExplanation}
+                            </p>
+
+                            {/* Citations Footer */}
+                            <div className="pt-2 border-t border-slate-200 flex flex-wrap items-center gap-2 text-[10px] text-slate-500 font-medium">
+                              <span className="text-slate-400 font-bold uppercase tracking-wider">Literature Citations:</span>
+                              <a
+                                href="https://doi.org/10.1145/3457607"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-white hover:bg-slate-100 border border-slate-200 hover:border-slate-300 px-2 py-0.5 rounded-md text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1 transition-colors"
+                                title="Mehrabi et al. (2021) - A Survey on Bias and Fairness in Machine Learning (ACM Computing Surveys)"
+                              >
+                                <span>SPD: Mehrabi et al. (2021)</span>
+                                <i className="bi bi-box-arrow-up-right text-[9px]" />
+                              </a>
+                              <a
+                                href="https://doi.org/10.1145/3494672"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-white hover:bg-slate-100 border border-slate-200 hover:border-slate-300 px-2 py-0.5 rounded-md text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1 transition-colors"
+                                title="Pessach & Shmueli (2022) - A Review on Fairness in Machine Learning (ACM Computing Surveys)"
+                              >
+                                <span>DI: Pessach & Shmueli (2022)</span>
+                                <i className="bi bi-box-arrow-up-right text-[9px]" />
+                              </a>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-white border border-slate-200 rounded-xl p-3.5 text-xs text-slate-500 italic">
+                            Disparity details for this subgroup have been verified against benchmark provenance logs.
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (

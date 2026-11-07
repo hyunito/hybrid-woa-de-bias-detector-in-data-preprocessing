@@ -64,12 +64,16 @@ def load_provenance_data(rows, reload: bool = False):
             # Compound fairness objective: Statistical Parity Difference (SPD) + |1 - Disparate Impact (DI)|
             spd = abs(rate_target - rate_priv)
             di = rate_target / (rate_priv + 1e-5)
+            rate_before = target_data.get("selection_rate_before", rate_target)
+            delta_rate = target_data.get("delta_selection_rate", 0.0)
 
             _fitness_details_cache[(script, trans, demo_key)] = {
                 "spd": spd,
                 "di": di,
                 "di_penalty": abs(1 - di),
-                "rate_target": rate_target
+                "rate_target": rate_target,
+                "rate_before": rate_before,
+                "delta_selection_rate": delta_rate
             }
 
             _fitness_cache[(script, trans, demo_key)] = spd + abs(1 - di)
@@ -80,7 +84,14 @@ def get_fitness_detail(script_name: str, trans_name: str, demo_key: str) -> dict
     """Returns the granular disparity breakdown for a specific demographic group."""
     return _fitness_details_cache.get(
         (script_name, trans_name, demo_key),
-        {"spd": 0.0, "di": 1.0, "di_penalty": 0.0, "rate_target": 0.0}
+        {
+            "spd": 0.0,
+            "di": 1.0,
+            "di_penalty": 0.0,
+            "rate_target": 0.0,
+            "rate_before": 0.0,
+            "delta_selection_rate": 0.0
+        }
     )
 
 def _load_records_from_json(path: str):

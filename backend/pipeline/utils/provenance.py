@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import datetime
 import functools
 import json
@@ -40,6 +41,7 @@ class ProvenanceMetadataTracker:
                 password = os.getenv('DB_PASSWORD'),
                 host = os.getenv('DB_HOST'),
                 port = os.getenv('DB_PORT'),
+                connect_timeout = 2
                 )
             self.cursor = self.connection.cursor()
         except psycopg2.OperationalError as e:
@@ -57,6 +59,11 @@ class ProvenanceMetadataTracker:
         self.target_variable = target_variable
         self.protected_attributes = protected_attributes
         self.metadata_records = []
+        self._learned_bins = {}
+        self._last_result_ref = None
+        self._last_snapshot = None
+        self._last_priv = None
+        self._last_rate = None
         
         if isinstance(target_variable, dict):
             self.target_col = target_variable.get('name')
@@ -67,38 +74,45 @@ class ProvenanceMetadataTracker:
             self.user_pos = None
             self.user_neg = None
 
-    def _standardize_missing(self, df, columns):
+    def _standardize_missing(self, df_meta, columns):
         """
         Standardizes missing values to 'Unknown'.
         Targets NaN, null, empty strings "", and "?".
+        Optimized with fast boolean mask assignment to eliminate type conversion churn.
         """
-        df_meta = df.copy()
-        missing_vals = ["", "?", "nan", "NaN", "Null", "null", "NA"]
-        
+        missing_vals = {"", "?", "nan", "NaN", "Null", "null", "NA", "<NA>"}
         for col in columns:
             if col in df_meta.columns:
-                df_meta[col] = df_meta[col].replace(missing_vals, "Unknown")
-                df_meta[col] = df_meta[col].astype(object)
-                df_meta[col] = df_meta[col].astype(str)
+                series = df_meta[col].astype(str).str.strip()
+                mask = series.isna() | series.isin(missing_vals)
+                if mask.any():
+                    series = series.copy()
+                    series[mask] = "Unknown"
+                df_meta[col] = series
         return df_meta
 
     def _bin_continuous(self, df_meta):
         """
-        Bins continuous variables into 5 discrete ranges using pandas.cut.
-        Skips binning if the column has already been converted to labels (e.g. 'teen', 'adult').
+        Bins continuous variables into discrete quantile ranges using pandas.qcut.
+        Skips binning if the column has already been converted to labels (e.g. 'Young Adult').
         """
+        missing_vals = {"", "?", "nan", "NaN", "Null", "null", "NA", "<NA>"}
         for attr in self.protected_attributes:
             if attr.get('type') == 'continuous':
                 col = attr['name']
                 if col in df_meta.columns:
-                    is_unknown = df_meta[col].astype(str) == "Unknown"
-                    non_unknown = df_meta.loc[~is_unknown, col]
-                    numeric_series = pd.to_numeric(non_unknown, errors='coerce')
-
+                    numeric_series = pd.to_numeric(df_meta[col], errors='coerce')
                     if numeric_series.notna().sum() > 0:
+                        # Natural quantile cut: creates (16.999, 28.0] directly from the dataset
                         binned_series = pd.qcut(numeric_series, q=5, duplicates='drop').astype(str)
-                        df_meta.loc[~is_unknown, col] = binned_series
-                        df_meta[col] = df_meta[col].replace(["nan", "NaN"], "Unknown")
+                        df_meta[col] = binned_series.replace(["nan", "NaN", "<NA>"], "Unknown")
+                    else:    # Column was already converted to labels (e.g. 'Young Adult')
+                        series = df_meta[col].astype(str).str.strip()
+                        mask = series.isna() | series.isin(missing_vals)
+                        if mask.any():
+                            series = series.copy()
+                            series[mask] = "Unknown"
+                        df_meta[col] = series
 
         return df_meta
     
@@ -128,55 +142,68 @@ class ProvenanceMetadataTracker:
     def _generate_snapshot(self, df):
         """
         Generates the intersectional snapshot with counts and rates.
-        Produces a flattened dictionary with keys like 'race:Asian|sex:Female|age:21-40'.
+        Optimized with column slicing and vectorized groupby aggregation.
         """
-        attrs = []
-
-        for attr in self.protected_attributes:
-            attribute_name = attr['name']
-            
-            if attribute_name in df.columns:
-                attrs.append(attribute_name)
-
+        attrs = [attr['name'] for attr in self.protected_attributes if attr['name'] in df.columns]
         if not attrs:
-            return {}
+            return {}, None, -1
 
-        df_meta = self._standardize_missing(df, attrs)
+        # 1. Memory Optimization: Slice ONLY the demographic and target columns
+        has_target = self.target_col is not None and self.target_col in df.columns
+        cols_needed = list(attrs)
+        if has_target:
+            cols_needed.append(self.target_col)
+
+        df_meta = df[cols_needed].copy()
+
+        # 2. Standardize categorical attributes & bin continuous attributes
+        cat_cols = [attr['name'] for attr in self.protected_attributes if attr.get('type') == 'categorical' and attr['name'] in df_meta.columns]
+        df_meta = self._standardize_missing(df_meta, cat_cols)
         df_meta = self._bin_continuous(df_meta)
-        if self.target_col in df_meta.columns:
-            df_meta[self.target_col] = df_meta[self.target_col].astype(str).str.strip().str.upper()
 
-        groups = df_meta.groupby(attrs)
+        # 3. Vectorized Target Evaluation & GroupBy Aggregation (C/Cython speed)
+        if has_target:
+            target_series = df_meta[self.target_col].astype(str).str.strip().str.upper()
+            if self.user_pos is not None:
+                fav_mask = (target_series == self.user_pos)
+                unfav_mask = (target_series == self.user_neg)
+            else:
+                fav_mask = target_series.isin({'1', '1.0', 'TRUE'})
+                unfav_mask = target_series.isin({'0', '0.0', 'FALSE'})
+            
+            df_meta['_fav'] = fav_mask.astype(np.int32)
+            df_meta['_unfav'] = unfav_mask.astype(np.int32)
+
+            agg = df_meta.groupby(attrs, observed=False).agg(
+                total_count=('_fav', 'count'),
+                favorable=('_fav', 'sum'),
+                unfavorable=('_unfav', 'sum')
+            ).reset_index()
+        else:
+            agg = df_meta.groupby(attrs, observed=False).size().reset_index(name='total_count')
+            agg['favorable'] = 0
+            agg['unfavorable'] = 0
+
+        # 4. Construct demographic dictionary & identify privileged group
         intersectional_demographics = {}
         privileged_group = None
         highest_rate = -1
         highest_ci_lower = -1.0
-        for name, group in groups:
-            
-            if isinstance(name, tuple):
-                group_key = "|".join([f"{k}:{v}" for k, v in zip(attrs, name)])
-            else:
-                group_key = f"{attrs[0]}:{name}"
-                
-            total_count = len(group)
-            
-            favorable = 0
-            unfavorable = 0
-            
-            if self.target_col in df.columns:
-                target_series = group[self.target_col]
-                if self.user_pos is not None:
-                    favorable = int((target_series == self.user_pos).sum())
-                    unfavorable = int((target_series == self.user_neg).sum())
-                else:
-                    favorable = int(((target_series == 1) | (target_series == '1') | (target_series == 1.0) | (target_series == True)).sum())
-                    unfavorable = int(((target_series == 0) | (target_series == '0') | (target_series == 0.0) | (target_series == False)).sum())
-                
-            selection_rate_favorable_outcomes = favorable / total_count
-            selection_rate_unfavorable_outcomes = unfavorable / total_count
 
+        for row in agg.itertuples(index=False):
+            if len(attrs) == 1:
+                group_key = f"{attrs[0]}:{getattr(row, attrs[0])}"
+            else:
+                group_key = "|".join([f"{k}:{getattr(row, k)}" for k in attrs])
+
+            total_count = int(row.total_count)
+            favorable = int(row.favorable)
+            unfavorable = int(row.unfavorable)
+
+            selection_rate_favorable_outcomes = favorable / total_count if total_count > 0 else 0.0
+            selection_rate_unfavorable_outcomes = unfavorable / total_count if total_count > 0 else 0.0
             ci_lower, ci_upper = self._calculate_wilson_interval(favorable, total_count)
-            
+
             intersectional_demographics[group_key] = {
                 "total_count": total_count,
                 "favorable_outcomes": favorable,
@@ -186,11 +213,12 @@ class ProvenanceMetadataTracker:
                 "wilson_ci_lower": ci_lower,
                 "wilson_ci_upper": ci_upper
             }
-            
+
             if total_count >= 30 and ci_lower > highest_ci_lower:
                 highest_ci_lower = ci_lower
                 highest_rate = selection_rate_favorable_outcomes
                 privileged_group = group_key
+
         return intersectional_demographics, privileged_group, highest_rate
 
     def track(self, transformation_name=None):
@@ -222,6 +250,22 @@ class ProvenanceMetadataTracker:
                         print(f"Ethical Constraint Error: {error_msg}")
                         raise ValueError(error_msg)
 
+                # 1. Capture demographic baseline snapshot BEFORE transformation
+                before_snapshot = {}
+                if input_df is not None:
+                    try:
+                        # Optimization: Reuse snapshot if input_df is the unmodified output of the previous step
+                        if (
+                            self._last_result_ref is not None 
+                            and input_df is self._last_result_ref 
+                            and self._last_snapshot is not None
+                        ):
+                            before_snapshot = self._last_snapshot
+                        else:
+                            before_snapshot, _, _ = self._generate_snapshot(input_df)
+                    except Exception:
+                        before_snapshot = {}
+
                 result_df = func(*args, **kwargs)
                 file_path = inspect.getfile(func)
                 script_name = os.path.basename(file_path)
@@ -234,6 +278,83 @@ class ProvenanceMetadataTracker:
                 
                 if df_to_analyze is not None:
                     snapshot, privileged_group, highest_rate = self._generate_snapshot(df_to_analyze)
+                    
+                    # Update cache for consecutive step acceleration
+                    self._last_result_ref = df_to_analyze
+                    self._last_snapshot = snapshot
+                    self._last_priv = privileged_group
+                    self._last_rate = highest_rate
+                    
+                    # 2. Compute delta selection rate for every demographic group
+                    max_rate_drop = 0.0
+                    for group_key, group_data in snapshot.items():
+                        rate_after = group_data.get("selection_rate_favorable_outcomes", 0.0)
+                        
+                        # Look up what this group's rate was BEFORE the transformation
+                        rate_before = None
+                        if group_key in before_snapshot:
+                            rate_before = before_snapshot[group_key].get(
+                                "selection_rate_favorable_outcomes"
+                            )
+                        else:
+                            # Fallback: if group_key string differed slightly (e.g. lower bound shifted after outlier removal),
+                            # match candidate subgroups by shared categorical attributes and overlapping continuous range.
+                            try:
+                                import re
+                                parts = dict(p.split(":", 1) for p in group_key.split("|") if ":" in p)
+                                candidates = []
+                                for b_key, b_data in before_snapshot.items():
+                                    b_parts = dict(p.split(":", 1) for p in b_key.split("|") if ":" in p)
+                                    match = True
+                                    shared = 0
+                                    for attr in self.protected_attributes:
+                                        aname = attr['name']
+                                        if attr.get('type') == 'categorical' and aname in parts and aname in b_parts:
+                                            shared += 1
+                                            if parts[aname] != b_parts[aname]:
+                                                match = False
+                                                break
+                                    if match and shared > 0:
+                                        candidates.append((b_key, b_data, b_parts))
+
+                                if len(candidates) == 1:
+                                    rate_before = candidates[0][1].get("selection_rate_favorable_outcomes")
+                                elif len(candidates) > 1:
+                                    # Find the candidate with matching upper bound (e.g. 28.0) or maximal overlap
+                                    best_match = None
+                                    for b_key, b_data, b_parts in candidates:
+                                        # Check if continuous columns share the same upper edge (e.g., 28.0)
+                                        shared_bounds = True
+                                        for attr in self.protected_attributes:
+                                            if attr.get('type') == 'continuous':
+                                                aname = attr['name']
+                                                m_curr = re.findall(r'[-+]?\d*\.?\d+', parts.get(aname, ''))
+                                                m_prev = re.findall(r'[-+]?\d*\.?\d+', b_parts.get(aname, ''))
+                                                if len(m_curr) >= 2 and len(m_prev) >= 2:
+                                                    # Compare upper edge (e.g. 28.0 == 28.0)
+                                                    if float(m_curr[1]) != float(m_prev[1]):
+                                                        shared_bounds = False
+                                                        break
+                                        if shared_bounds:
+                                            best_match = b_data
+                                            break
+                                    if best_match:
+                                        rate_before = best_match.get("selection_rate_favorable_outcomes")
+                            except Exception:
+                                pass
+
+                        if rate_before is None:
+                            rate_before = rate_after
+                        
+                        delta = round(rate_after - rate_before, 4)
+                        
+                        # Store both metrics inside the demographic group dictionary
+                        group_data["selection_rate_before"] = round(rate_before, 4)
+                        group_data["delta_selection_rate"] = delta
+
+                        # Track the largest negative drop in this transformation
+                        if delta < max_rate_drop:
+                            max_rate_drop = delta
                     row_count_after = len(df_to_analyze)
                     
                     metadata_record = {
@@ -244,6 +365,7 @@ class ProvenanceMetadataTracker:
                         "highest_selection_rate": highest_rate if privileged_group is not None else None,
                         "row_count_before": row_count_before,
                         "row_count_after": row_count_after,
+                        "max_rate_drop": round(max_rate_drop, 4),
                         "intersectional_demographics": snapshot
                     }
                     

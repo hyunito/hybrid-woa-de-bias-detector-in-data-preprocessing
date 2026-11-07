@@ -48,6 +48,5 @@ for run in range(runs):
         traceability = traceability + 1
     print(f"Transformation: {result['transformation_name']} | Score: {result['max_fitness_score']:.4f}\nTime: {execution_time:.4f}s | Peak RAM Usage: {peak_ram_mb:.6f}MB")
 
-#print(f"\nTarget Ground Truth Score: {target_score:.6f}")
 #print(f"Traceability Rate: {traceability} / {runs} ({(traceability / runs) * 100:.1f}%)")
 #print(f"Average Time: {total_time/run} \nAverage Peak RAM: {total_ram/run}")
